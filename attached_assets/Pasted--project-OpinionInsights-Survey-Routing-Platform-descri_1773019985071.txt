@@ -1,0 +1,201 @@
+"{
+  ""project"": ""OpinionInsights Survey Routing Platform"",
+  ""description"": ""A full-stack B2B survey panel management and routing system. Admins create projects (surveys), generate unique tracking URLs, distribute them to suppliers/respondents, and the system automatically routes each respondent to the correct survey vendor URL based on their response outcome (Complete, Terminate, Quota Full, Security Terminate, Duplicate, Paused)."",
+
+  ""stack"": {
+    ""framework"": ""Next.js 16 (App Router, TypeScript)"",
+    ""ui"": ""Tailwind CSS v4 + Lucide React icons + Framer Motion"",
+    ""3d"": ""@splinetool/react-spline (scene: https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode)"",
+    ""database"": ""PostgreSQL via Supabase (use `pg` package with connection string from env)"",
+    ""auth"": ""Custom bcrypt-based admin login (no NextAuth), session via httpOnly cookies"",
+    ""exports"": ""ExcelJS for .xlsx response exports"",
+    ""other_deps"": [""canvas-confetti"", ""dotted-map"", ""simplex-noise"", ""framer-motion"", ""clsx"", ""tailwind-merge""]
+  },
+
+  ""env_vars"": {
+    ""DATABASE_URL"": ""postgresql://... (Supabase connection string)"",
+    ""NEXT_PUBLIC_SUPABASE_URL"": ""https://xxx.supabase.co"",
+    ""NEXT_PUBLIC_SUPABASE_ANON_KEY"": ""..."",
+    ""ADMIN_SECRET"": ""for secret reset route""
+  },
+
+  ""database_schema"": {
+    ""admins"": {
+      ""columns"": [""id SERIAL PK"", ""username TEXT UNIQUE"", ""password_hash TEXT"", ""created_at TIMESTAMPTZ DEFAULT now()""],
+      ""seed"": ""Insert one admin with username='admin', password=bcrypt('admin123')""
+    },
+    ""clients"": {
+      ""columns"": [""id SERIAL PK"", ""name TEXT NOT NULL"", ""email TEXT"", ""company TEXT"", ""created_at TIMESTAMPTZ DEFAULT now()""]
+    },
+    ""projects"": {
+      ""columns"": [
+        ""id SERIAL PK"",
+        ""pid TEXT UNIQUE NOT NULL"",
+        ""name TEXT NOT NULL"",
+        ""client_id INT FK->clients.id"",
+        ""status TEXT DEFAULT 'active' CHECK(status IN ('active','paused','archived'))"",
+        ""complete_url TEXT"",
+        ""terminate_url TEXT"",
+        ""quotafull_url TEXT"",
+        ""security_terminate_url TEXT"",
+        ""prescreener_url TEXT"",
+        ""survey_url TEXT"",
+        ""cpi NUMERIC(10,2)"",
+        ""expected_completes INT"",
+        ""country TEXT"",
+        ""loi INT"",
+        ""ir NUMERIC(5,2)"",
+        ""created_at TIMESTAMPTZ DEFAULT now()""
+      ]
+    },
+    ""suppliers"": {
+      ""columns"": [
+        ""id SERIAL PK"",
+        ""project_id INT FK->projects.id ON DELETE CASCADE"",
+        ""name TEXT NOT NULL"",
+        ""supplier_code TEXT NOT NULL"",
+        ""complete_url TEXT"",
+        ""terminate_url TEXT"",
+        ""quotafull_url TEXT"",
+        ""security_url TEXT"",
+        ""status TEXT DEFAULT 'active'"",
+        ""UNIQUE(project_id, supplier_code)""
+      ]
+    },
+    ""responses"": {
+      ""columns"": [
+        ""id SERIAL PK"",
+        ""project_id INT FK->projects.id"",
+        ""pid TEXT"",
+        ""uid TEXT"",
+        ""ip_address TEXT"",
+        ""status TEXT DEFAULT 'started' CHECK(status IN ('started','complete','terminate','quotafull','security_terminate','duplicate','paused'))"",
+        ""supplier_id INT FK->suppliers.id"",
+        ""oi_session TEXT UNIQUE"",
+        ""created_at TIMESTAMPTZ DEFAULT now()"",
+        ""updated_at TIMESTAMPTZ DEFAULT now()""
+      ]
+    }
+  },
+
+  ""routing_logic"": {
+    ""entry_point"": ""GET /r/[pid] — respondent lands here with ?uid=XXX&supplier=CODE"",
+    ""flow"": [
+      ""1. Look up project by pid. If not found or status=paused → redirect to /paused."",
+      ""2. Check if uid+pid combo already exists in responses → redirect to /duplicate-string."",
+      ""3. Check if same IP already responded to this pid → redirect to /duplicate-ip."",
+      ""4. Resolve supplier by supplier_code. If not found, use project defaults."",
+      ""5. Generate oi_session = UUID. Insert responses row with status='started'."",
+      ""6. Redirect user to the survey_url or prescreener_url, appending ?oi_session=SESSION&uid=UID""
+    ],
+    ""callback_endpoints"": {
+      ""GET /track/complete"": ""Update response status to 'complete', redirect to supplier complete_url or project complete_url"",
+      ""GET /track/terminate"": ""Update response status to 'terminate', redirect to terminate_url"",
+      ""GET /track/quotafull"": ""Update response status to 'quotafull', redirect to quotafull_url"",
+      ""GET /track/security-terminate"": ""Update response status to 'security_terminate', redirect to security_terminate_url"",
+      ""GET /duplicate-ip/page"": ""Show duplicate IP page"",
+      ""GET /duplicate-string/page"": ""Show duplicate UID page"",
+      ""GET /paused/page"": ""Show paused page""
+    },
+    ""all_callbacks_accept"": ""?pid=PID&uid=UID&oi_session=SESSION — look up response by oi_session, update status, then redirect to the right vendor URL""
+  },
+
+  ""pages"": {
+    ""/"": ""Redirect to /login"",
+    ""/login"": ""Admin login form. POST to /api/auth/login. On success set httpOnly cookie 'admin_session'. Redirect to /admin/dashboard."",
+    ""/admin/dashboard"": ""Protected. Shows stats: total responses today, completes, terminates, quota fulls. Live activity feed. Traffic chart by day."",
+    ""/admin/projects"": ""List all projects as cards. Each card shows PID, name, client, status toggle, response counts. Button to create new project."",
+    ""/admin/projects/new"": ""ProjectForm — huge form with all project fields: name, client, PID (auto-gen or custom), survey URL, all redirect URLs, suppliers list (add/remove suppliers with their own redirect URLs), CPI, LOI, IR, country, expected completes."",
+    ""/admin/projects/[id]/edit"": ""ProjectEditForm — same as new but pre-filled."",
+    ""/admin/responses"": ""AdminResponsesTable — paginated table of all responses across all projects. Filters: project, status, date range, search by UID. Export to Excel button."",
+    ""/admin/clients"": ""CRUD for clients. Simple table + form."",
+    ""/admin/suppliers"": ""SupplierManager — manage suppliers per project. Each supplier has their own redirect URLs."",
+    ""/admin/redirects"": ""RedirectCenter — visual manager for all redirect URLs per project. Quick copy buttons."",
+    ""/admin/settings"": ""Change admin password. ResponseMaintenance — bulk delete responses with confirmation dialog."",
+    ""/complete"": ""LandingResultLayout with type='success'. Shows full-screen black background, Spline 3D robot centered, rainbow CSS animation background, Response Record table pinned at bottom."",
+    ""/terminate"": ""LandingResultLayout type='error'"",
+    ""/quotafull"": ""LandingResultLayout type='warning'"",
+    ""/security-terminate"": ""LandingResultLayout type='dark'"",
+    ""/duplicate-ip"": ""LandingResultLayout type='info' — duplicate IP detected"",
+    ""/duplicate-string"": ""LandingResultLayout type='secondary' — duplicate UID detected"",
+    ""/paused"": ""LandingResultLayout type='warning' — survey is paused"",
+    ""/prescreener"": ""RedirectShortcut — forwards to prescreener_url"",
+    ""/demo"": ""Demo page showing the routing system in action"",
+    ""/status"": ""Public status check for a session by oi_session token""
+  },
+
+  ""key_components"": {
+    ""LandingResultLayout"": {
+      ""description"": ""Full-screen dark result page used for complete/terminate/quotafull etc."",
+      ""layout"": ""100vh black background. CSS rainbow gradient animation (opacity 0.13, 8s loop). Spline 3D robot scaled to 0.78 centered. Top overlay with title/badge/description. Bottom pinned glassmorphic Response Record table showing: Project ID, User ID, IP Address, Status. All data comes from URL query params."",
+      ""themes"": ""5 color themes keyed by type: success=emerald, error=rose, warning=amber, info=sky, dark=slate, secondary=indigo""
+    },
+    ""ProjectForm"": ""Large multi-section form: basic info, survey settings, redirect URLs, supplier management (add multiple suppliers with their own URLs). Auto-generates PID. Validates all fields. On submit POSTs to /api/projects."",
+    ""AdminResponsesTable"": ""Paginated table with filters (project, status, date). Column sorting. Export to Excel via ExcelJS. Shows oi_session, uid, ip, status, timestamp, project name."",
+    ""SupplierManager"": ""Per-project supplier CRUD. Each supplier: name, supplier_code (used in tracking URL), complete/terminate/quotafull/security redirect URLs."",
+    ""RedirectCenter"": ""Visual grid of all projects showing all their redirect URLs with one-click copy buttons."",
+    ""DashboardStats"": ""Four stat cards: Total Today, Completes, Terminates, Quota Fulls. Pulls from /api/admin/stats."",
+    ""LiveActivityFeed"": ""Auto-refreshing list of the 20 latest responses with status badges."",
+    ""TrafficChart"": ""Simple bar chart of responses per day for last 14 days."",
+    ""SplineScene"": ""Lazy-loaded Spline 3D scene wrapper with loading spinner fallback."",
+    ""CopyButton"": ""Copy to clipboard with checkmark animation feedback.""
+  },
+
+  ""api_routes"": {
+    ""POST /api/auth/login"": ""Validate username+password against admins table using bcrypt. Set secure httpOnly cookie."",
+    ""POST /api/auth/logout"": ""Clear cookie."",
+    ""GET /api/admin/stats"": ""Return counts grouped by status for today."",
+    ""GET /api/admin/responses"": ""Paginated responses with filters. Accepts ?page, ?project_id, ?status, ?search, ?from, ?to."",
+    ""POST /api/projects"": ""Create project. Auto-generate PID if not provided."",
+    ""PATCH /api/projects/[id]"": ""Update project fields."",
+    ""DELETE /api/projects/[id]"": ""Delete project and cascade responses."",
+    ""POST /api/projects/[id]/suppliers"": ""Add supplier to project."",
+    ""DELETE /api/suppliers/[id]"": ""Remove supplier."",
+    ""GET /api/responses/export"": ""Stream Excel file of filtered responses."",
+    ""DELETE /api/responses/bulk"": ""Delete all responses (with admin auth check)."",
+    ""POST /api/secret-reset"": ""Reset admin password — protected by ADMIN_SECRET env var.""
+  },
+
+  ""middleware"": {
+    ""file"": ""middleware.ts"",
+    ""logic"": ""Protect all /admin/* routes. Check for 'admin_session' cookie. If missing, redirect to /login. Also protect /api/admin/* routes, return 401 if not authenticated.""
+  },
+
+  ""ui_design_system"": {
+    ""colors"": {
+      ""primary"": ""#5B5CF6 (indigo)"",
+      ""background"": ""#FFFFFF"",
+      ""text_dark"": ""#0F172A"",
+      ""text_body"": ""#475569"",
+      ""text_muted"": ""#94A3B8"",
+      ""border"": ""#E2E8F0""
+    },
+    ""fonts"": ""Inter (Google Fonts)"",
+    ""admin_sidebar"": ""Fixed left sidebar, dark slate (#0F172A). Nav items with icons. Current page highlighted."",
+    ""admin_cards"": ""White cards, rounded-2xl, subtle shadow, border border-slate-100."",
+    ""status_badges"": ""Colored pill badges: emerald=complete, rose=terminate, amber=quotafull, slate=security, indigo=duplicate, gray=started."",
+    ""result_pages"": ""Full-screen dark layout. CSS rainbow gradient animation behind Spline robot. Glassmorphic table overlaid at bottom.""
+  },
+
+  ""oid_generation"": {
+    ""pid"": ""Format: 3 uppercase letters + 5 digits, e.g. OPI25505. Auto-generated but admin can override."",
+    ""oi_session"": ""UUID v4 generated server-side at entry point /r/[pid]."",
+    ""tracking_url_format"": ""https://yourdomain.com/r/{PID}?uid={RESPONDENT_ID}&supplier={SUPPLIER_CODE}""
+  },
+
+  ""security"": {
+    ""auth"": ""bcrypt password hashing. httpOnly + secure + sameSite=strict cookies."",
+    ""duplicate_detection"": ""Check uid+pid combo AND ip+pid combo before inserting response."",
+    ""session_validation"": ""All callback endpoints validate the oi_session exists in DB before updating.""
+  },
+
+  ""notes"": [
+    ""Root / redirects to /login."",
+    ""Admin default credentials: username=admin, password=admin123 (force change in production)."",
+    ""All result pages (complete, terminate, quotafull, etc.) share LandingResultLayout component."",
+    ""The tracking entry /r/[pid] must be extremely fast — keep it a simple server component with direct DB query, no heavy imports."",
+    ""Rainbow background animation is pure CSS keyframe on a linear-gradient div with opacity 0.13 — no WebGL, no canvas."",
+    ""Spline robot is wrapped in a scale(0.78) transform div so the full body (head to feet) is visible without cropping.""
+  ]
+}
+"
