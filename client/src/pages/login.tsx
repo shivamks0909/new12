@@ -16,7 +16,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { BarChart3, Loader2 } from "lucide-react";
+import { BarChart3, Loader2, ShieldCheck, User, Lock } from "lucide-react";
+import { BackgroundPaths } from "@/components/ui/background-paths";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -44,12 +45,13 @@ export default function LoginPage() {
     },
     onSuccess: () => {
       setLocation("/admin/dashboard");
+      toast({ title: "Welcome to Nexus", description: "Authentication verified." });
     },
     onError: (error: Error) => {
       toast({
-        title: "Login failed",
+        title: "Access Denied",
         description: error.message.includes("401")
-          ? "Invalid username or password"
+          ? "Invalid credentials detected"
           : error.message,
         variant: "destructive",
       });
@@ -61,45 +63,59 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="flex items-center justify-center w-12 h-12 rounded-md bg-primary">
-            <BarChart3 className="w-6 h-6 text-primary-foreground" />
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-slate-50">
+      <BackgroundPaths />
+      <div className="relative z-10 w-full max-w-[440px] mx-auto px-6">
+        <div className="flex flex-col items-center mb-10">
+          <div className="group relative">
+            <div className="absolute -inset-4 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all duration-700" />
+            <div className="relative flex items-center justify-center w-16 h-16 rounded-3xl bg-white shadow-xl shadow-slate-200 border border-slate-100 mb-6 text-primary group-hover:scale-110 transition-transform duration-500">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight" data-testid="text-brand-title">
-              OpinionInsights
+            <h1 className="text-slate-900 font-black text-3xl tracking-tighter">
+              Nexus <span className="text-primary italic font-serif">OS</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-1" data-testid="text-brand-subtitle">
-              Survey Routing Platform
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mt-2 ml-1">
+              Mission Control Intelligence
             </p>
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Sign in</CardTitle>
-            <CardDescription>Enter your credentials to access the admin panel</CardDescription>
+        <Card className="bg-white/40 backdrop-blur-3xl border-slate-200/60 shadow-2xl shadow-slate-200/20 rounded-[2.5rem] p-10 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
+            <Lock className="w-24 h-24" />
+          </div>
+
+          <CardHeader className="p-0 mb-10">
+            <CardTitle className="text-slate-800 font-black text-2xl tracking-tight">Identity Verification</CardTitle>
+            <CardDescription className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
+              Secure Administrative Access Only
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="p-0">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="username"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">LogonID</FormLabel>
                       <FormControl>
-                        <Input
-                          data-testid="input-username"
-                          placeholder="Enter your username"
-                          autoComplete="username"
-                          {...field}
-                        />
+                        <div className="relative group">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-primary transition-colors" />
+                          <Input
+                            className="w-full h-14 bg-slate-50 border-slate-200 rounded-2xl pl-12 pr-6 font-bold text-slate-800 focus:ring-4 focus:ring-primary/5 transition-all outline-none"
+                            placeholder="username"
+                            autoComplete="username"
+                            {...field}
+                          />
+                        </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-rose-500 text-[10px] font-black uppercase ml-1" />
                     </FormItem>
                   )}
                 />
@@ -107,36 +123,44 @@ export default function LoginPage() {
                   control={form.control}
                   name="password"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">Access Phrase</FormLabel>
                       <FormControl>
-                        <Input
-                          data-testid="input-password"
-                          type="password"
-                          placeholder="Enter your password"
-                          autoComplete="current-password"
-                          {...field}
-                        />
+                        <div className="relative group">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-primary transition-colors" />
+                          <Input
+                            className="w-full h-14 bg-slate-50 border-slate-200 rounded-2xl pl-12 pr-6 font-bold text-slate-800 focus:ring-4 focus:ring-primary/5 transition-all outline-none"
+                            type="password"
+                            placeholder="••••••••"
+                            autoComplete="current-password"
+                            {...field}
+                          />
+                        </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-rose-500 text-[10px] font-black uppercase ml-1" />
                     </FormItem>
                   )}
                 />
-                <Button
+                <button
                   type="submit"
-                  className="w-full"
+                  className="w-full h-16 bg-slate-900 hover:bg-black text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] shadow-xl shadow-slate-200 transition-all flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 disabled:opacity-50 mt-4"
                   disabled={loginMutation.isPending}
-                  data-testid="button-login"
                 >
                   {loginMutation.isPending ? (
-                    <Loader2 className="animate-spin" />
-                  ) : null}
-                  {loginMutation.isPending ? "Signing in..." : "Sign in"}
-                </Button>
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      Decrypting...
+                    </>
+                  ) : "Initialize Login"}
+                </button>
               </form>
             </Form>
           </CardContent>
         </Card>
+
+        <p className="text-center text-slate-300 text-[9px] font-black uppercase tracking-[0.3em] mt-10 opacity-50">
+          OpinionInsights Routing Platform v2.0
+        </p>
       </div>
     </div>
   );

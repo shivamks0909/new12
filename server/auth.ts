@@ -11,18 +11,22 @@ declare module "express-session" {
 }
 
 export function setupAuth(app: Express) {
+  const sessionStore = process.env.DATABASE_URL
+    ? new PgSession({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+    })
+    : undefined;
+
   app.use(
     session({
-      store: new PgSession({
-        conString: process.env.DATABASE_URL,
-        createTableIfMissing: true,
-      }),
+      store: sessionStore,
       secret: process.env.SESSION_SECRET || "opinion-insights-secret-key-change-me",
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: false,
+        secure: false, // Set to true in production with HTTPS
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: "lax",
       },

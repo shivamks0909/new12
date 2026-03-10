@@ -1,291 +1,146 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Download, Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
-import type { SurveyResponse, Project } from "@shared/schema";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
+import { Search, Filter, Database, ArrowUpDown, Globe } from "lucide-react";
+import type { Respondent } from "@shared/schema";
 
 export default function ResponsesPage() {
-  const { toast } = useToast();
-  const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const limit = 25;
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const params = new URLSearchParams();
-  if (projectFilter !== "all") params.set("projectId", projectFilter);
-  if (statusFilter !== "all") params.set("status", statusFilter);
-  if (search) params.set("search", search);
-  params.set("page", String(page));
-  params.set("limit", String(limit));
-
-  const { data: responsesData, isLoading } = useQuery<{ data: SurveyResponse[]; total: number }>({
-    queryKey: ["/api/responses", `?${params.toString()}`],
+  const { data: responses, isLoading } = useQuery<Respondent[]>({
+    queryKey: ["/api/responses"],
   });
 
-  const { data: projectsList } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+  const filteredResponses = responses?.filter((r) => {
+    const matchesSearch =
+      r.projectCode.toLowerCase().includes(search.toLowerCase()) ||
+      r.supplierCode.toLowerCase().includes(search.toLowerCase()) ||
+      r.id.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || r.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (ids: number[]) => {
-      await apiRequest("DELETE", "/api/responses/bulk", { ids });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/responses"] });
-      setSelectedIds([]);
-      toast({ title: "Responses deleted" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const totalPages = responsesData ? Math.ceil(responsesData.total / limit) : 0;
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (!responsesData) return;
-    const allIds = responsesData.data.map((r) => r.id);
-    const allSelected = allIds.every((id) => selectedIds.includes(id));
-    if (allSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !allIds.includes(id)));
-    } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...allIds])));
-    }
-  };
-
-  const handleExport = () => {
-    const exportParams = new URLSearchParams();
-    if (projectFilter !== "all") exportParams.set("projectId", projectFilter);
-    if (statusFilter !== "all") exportParams.set("status", statusFilter);
-    if (search) exportParams.set("search", search);
-    window.open(`/api/responses/export?${exportParams.toString()}`, "_blank");
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleString();
-  };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-semibold" data-testid="text-responses-title">Responses</h1>
-        <div className="flex items-center gap-2 flex-wrap">
-          {selectedIds.length > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" data-testid="button-bulk-delete">
-                  <Trash2 />
-                  Delete ({selectedIds.length})
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Responses</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete {selectedIds.length} response(s)? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => bulkDeleteMutation.mutate(selectedIds)}
-                    data-testid="button-confirm-delete"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          <Button variant="outline" onClick={handleExport} data-testid="button-export">
-            <Download />
-            Export Excel
-          </Button>
+    <div className="space-y-10 pb-12">
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-6 border-b border-slate-200/60">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Respondent Stream</h1>
+          <p className="text-sm text-slate-400 mt-1 font-bold">Transaction ledger for all incoming traffic nodes</p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search by UID..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-9"
-                data-testid="input-search"
-              />
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <Input
+            placeholder="Search by SID, PID or Hub..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-12 h-14 bg-white/40 border-slate-200/60 rounded-2xl backdrop-blur-xl focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all text-slate-800 placeholder:text-slate-300 font-bold"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full md:w-56 h-14 bg-white/40 border-slate-200/60 rounded-2xl backdrop-blur-xl text-slate-600 font-bold px-5 focus:ring-4 focus:ring-primary/5 transition-all">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <SelectValue placeholder="All Status" />
             </div>
-            <Select value={projectFilter} onValueChange={(v) => { setProjectFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[180px]" data-testid="select-project-filter">
-                <SelectValue placeholder="All Projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Projects</SelectItem>
-                {projectsList?.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.pid})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]" data-testid="select-status-filter">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="started">Started</SelectItem>
-                <SelectItem value="complete">Complete</SelectItem>
-                <SelectItem value="terminate">Terminate</SelectItem>
-                <SelectItem value="quotafull">Quota Full</SelectItem>
-                <SelectItem value="security-terminate">Security Terminate</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+          </SelectTrigger>
+          <SelectContent className="bg-white/90 backdrop-blur-2xl border-slate-200 rounded-2xl p-1 shadow-2xl">
+            <SelectItem value="all" className="rounded-xl font-bold text-slate-600 focus:bg-primary focus:text-white transition-colors">All Transitions</SelectItem>
+            <SelectItem value="complete" className="rounded-xl font-bold text-slate-600 focus:bg-primary focus:text-white transition-colors">Complete</SelectItem>
+            <SelectItem value="terminate" className="rounded-xl font-bold text-slate-600 focus:bg-primary focus:text-white transition-colors">Terminate</SelectItem>
+            <SelectItem value="quotafull" className="rounded-xl font-bold text-slate-600 focus:bg-primary focus:text-white transition-colors">Quota Full</SelectItem>
+            <SelectItem value="security" className="rounded-xl font-bold text-slate-600 focus:bg-primary focus:text-white transition-colors">Security</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Card>
+      <Card className="bg-white/40 border-slate-200/60 rounded-[2.5rem] backdrop-blur-2xl shadow-xl shadow-slate-200/10 overflow-hidden group">
+        <CardHeader className="p-8 border-b border-slate-100 flex flex-row items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-100 rounded-xl group-hover:bg-primary/10 transition-colors">
+              <Database className="w-4 h-4 text-slate-500 group-hover:text-primary transition-colors" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Transaction Registry</CardTitle>
+              <CardDescription className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-1">
+                {filteredResponses?.length || 0} Records found in current partition
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+            <div className="p-8 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-2xl bg-slate-50" />
               ))}
             </div>
           ) : (
-            <>
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <input
-                        type="checkbox"
-                        checked={
-                          responsesData?.data?.length
-                            ? responsesData.data.every((r) => selectedIds.includes(r.id))
-                            : false
-                        }
-                        onChange={toggleSelectAll}
-                        data-testid="checkbox-select-all"
-                      />
-                    </TableHead>
-                    <TableHead>OI Session</TableHead>
-                    <TableHead>UID</TableHead>
-                    <TableHead>IP Address</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Timestamp</TableHead>
+                  <TableRow className="hover:bg-transparent border-b border-slate-100 bg-slate-50/50">
+                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 px-8 py-5 h-auto">Session ID / Context</TableHead>
+                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 px-8 py-5 h-auto">Origin Cluster</TableHead>
+                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 px-8 py-5 h-auto">Regional Node</TableHead>
+                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 px-8 py-5 h-auto">Result State</TableHead>
+                    <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 px-8 py-5 h-auto text-right">Timestamp</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {responsesData?.data?.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        No responses found
+                <TableBody className="divide-y divide-slate-100">
+                  {filteredResponses?.map((r) => (
+                    <TableRow key={r.id} className="group hover:bg-slate-50/80 transition-all border-none">
+                      <TableCell className="px-8 py-6">
+                        <div className="flex flex-col gap-1">
+                          <code className="text-[10px] font-mono font-bold text-slate-300 truncate max-w-[120px] group-hover:text-primary/40 transition-colors">{r.id}</code>
+                          <span className="font-black text-[13px] text-slate-800 tracking-tight group-hover:translate-x-1 transition-transform">{r.projectCode}</span>
+                        </div>
                       </TableCell>
-                    </TableRow>
-                  )}
-                  {responsesData?.data?.map((r) => (
-                    <TableRow key={r.id} data-testid={`row-response-${r.id}`}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(r.id)}
-                          onChange={() => toggleSelect(r.id)}
-                          data-testid={`checkbox-response-${r.id}`}
-                        />
+                      <TableCell className="px-8 capitalize">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
+                          {r.supplierCode}
+                        </span>
                       </TableCell>
-                      <TableCell className="font-mono text-xs max-w-[180px] truncate" data-testid={`text-session-${r.id}`}>
-                        {r.oiSession || "-"}
+                      <TableCell className="px-8 text-center">
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5 text-slate-300" />
+                          <span className="text-[11px] font-black text-slate-600">{r.countryCode || "Global"}</span>
+                        </div>
                       </TableCell>
-                      <TableCell data-testid={`text-uid-${r.id}`}>{r.uid || "-"}</TableCell>
-                      <TableCell data-testid={`text-ip-${r.id}`}>{r.ipAddress || "-"}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={r.status} />
+                      <TableCell className="px-8">
+                        <StatusBadge status={r.status || "started"} />
                       </TableCell>
-                      <TableCell data-testid={`text-project-${r.id}`}>
-                        {projectsList?.find((p) => p.id === r.projectId)?.name || r.pid}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm" data-testid={`text-time-${r.id}`}>
-                        {formatDate(r.createdAt)}
+                      <TableCell className="px-8 text-right font-bold text-[11px] text-slate-400">
+                        {new Date(r.startedAt || Date.now()).toLocaleDateString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </TableCell>
                     </TableRow>
                   ))}
+                  {!isLoading && filteredResponses?.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-64 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-3 opacity-30">
+                          <Database className="w-10 h-10" />
+                          <p className="text-sm font-black uppercase tracking-[0.2em]">No Synchronized Records</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
-              <div className="flex items-center justify-between gap-4 p-4 border-t">
-                <span className="text-sm text-muted-foreground" data-testid="text-total-count">
-                  {responsesData?.total || 0} total responses
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                    data-testid="button-prev-page"
-                  >
-                    <ChevronLeft />
-                  </Button>
-                  <span className="text-sm" data-testid="text-page-info">
-                    Page {page} of {totalPages || 1}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                    data-testid="button-next-page"
-                  >
-                    <ChevronRight />
-                  </Button>
-                </div>
-              </div>
-            </>
+            </div>
           )}
         </CardContent>
       </Card>

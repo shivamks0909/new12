@@ -1,36 +1,18 @@
-import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { GlassButton } from "@/components/ui/glass-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -39,60 +21,39 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { insertClientSchema, type Client } from "@shared/schema";
-import { z } from "zod";
-
-const clientFormSchema = insertClientSchema.extend({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Valid email is required"),
-  company: z.string().min(1, "Company is required"),
-});
-
-type ClientFormValues = z.infer<typeof clientFormSchema>;
+import { Plus, Trash2, Users, Building2, Mail, Link as LinkIcon } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertClientSchema } from "@shared/schema";
+import type { Client } from "@shared/schema";
 
 export default function ClientsPage() {
   const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  const { data: clientsList, isLoading } = useQuery<Client[]>({
+  const { data: clients, isLoading } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
   });
 
-  const form = useForm<ClientFormValues>({
-    resolver: zodResolver(clientFormSchema),
-    defaultValues: { name: "", email: "", company: "" },
+  const form = useForm({
+    resolver: zodResolver(insertClientSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      website: "",
+    },
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: ClientFormValues) => {
-      await apiRequest("POST", "/api/clients", data);
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/clients", data);
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      setDialogOpen(false);
+      toast({ title: "Client partner onboarded" });
       form.reset();
-      toast({ title: "Client created" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: ClientFormValues }) => {
-      await apiRequest("PATCH", `/api/clients/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      setDialogOpen(false);
-      setEditingClient(null);
-      form.reset();
-      toast({ title: "Client updated" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -105,182 +66,146 @@ export default function ClientsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      toast({ title: "Client deleted" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Client safely removed" });
     },
   });
 
-  const openCreate = () => {
-    setEditingClient(null);
-    form.reset({ name: "", email: "", company: "" });
-    setDialogOpen(true);
-  };
-
-  const openEdit = (client: Client) => {
-    setEditingClient(client);
-    form.reset({ name: client.name, email: client.email, company: client.company });
-    setDialogOpen(true);
-  };
-
-  const onSubmit = (data: ClientFormValues) => {
-    if (editingClient) {
-      updateMutation.mutate({ id: editingClient.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const isPending = createMutation.isPending || updateMutation.isPending;
-
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-semibold" data-testid="text-clients-title">Clients</h1>
-        <Button onClick={openCreate} data-testid="button-add-client">
-          <Plus />
-          Add Client
-        </Button>
+    <div className="space-y-10 pb-12">
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-6 border-b border-slate-200/60">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Partner Ecosystem</h1>
+          <p className="text-sm text-slate-400 mt-1 font-bold">Manage agency relationships and research collaborators</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <button className="bg-primary text-white hover:bg-primary/90 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]">
+              <Plus className="h-4 w-4" />
+              Add Partner
+            </button>
+          </DialogTrigger>
+          <DialogContent className="bg-white/95 backdrop-blur-3xl border-slate-200 rounded-[2.5rem] max-w-lg shadow-2xl p-0 overflow-hidden">
+            <div className="p-10">
+              <DialogHeader className="mb-8">
+                <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-xl">
+                    <Users className="w-5 h-5 text-primary" />
+                  </div>
+                  Onboard Partner
+                </DialogTitle>
+                <DialogDescription className="text-slate-400 font-medium">Establish a new client connection for research routing.</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Agency Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Acme Research Group" {...field} className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/5 transition-all text-slate-800 font-bold" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Primary Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="operations@acme.com" {...field} className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/5 transition-all text-slate-800" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Digital Nexus (URL)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://acme.com" {...field} className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/5 transition-all text-slate-800" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter className="pt-6">
+                    <button type="submit" disabled={createMutation.isPending} className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] transition-all disabled:opacity-50">
+                      {createMutation.isPending ? "Validating Path..." : "Onboard to Nexus"}
+                    </button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clientsList?.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      No clients yet
-                    </TableCell>
-                  </TableRow>
-                )}
-                {clientsList?.map((client) => (
-                  <TableRow key={client.id} data-testid={`row-client-${client.id}`}>
-                    <TableCell className="font-medium" data-testid={`text-client-name-${client.id}`}>
-                      {client.name}
-                    </TableCell>
-                    <TableCell data-testid={`text-client-email-${client.id}`}>{client.email}</TableCell>
-                    <TableCell data-testid={`text-client-company-${client.id}`}>{client.company}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(client.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => openEdit(client)}
-                          data-testid={`button-edit-client-${client.id}`}
-                        >
-                          <Pencil />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              data-testid={`button-delete-client-${client.id}`}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Client</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete {client.name}? This cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(client.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-48 w-full rounded-[2.5rem] bg-white/20" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {clients?.map((client) => (
+            <Card key={client.id} className="bg-white/40 border-slate-200/60 backdrop-blur-2xl rounded-[2.5rem] shadow-xl shadow-slate-200/5 overflow-hidden group hover:bg-white/60 hover:border-white hover:shadow-2xl transition-all duration-500">
+              <CardContent className="p-8">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="p-3 bg-primary/10 rounded-2xl group-hover:bg-primary transition-all duration-500">
+                    <Building2 className="h-6 w-6 text-primary group-hover:text-white transition-colors duration-500" />
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Safely remove ${client.name}?`)) {
+                        deleteMutation.mutate(client.id);
+                      }
+                    }}
+                    className="p-2 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingClient ? "Edit Client" : "Add Client"}</DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-client-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} data-testid="input-client-email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="company"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-client-company" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="submit" disabled={isPending} data-testid="button-save-client">
-                  {isPending ? "Saving..." : editingClient ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-[15px] font-black text-slate-800 tracking-tight leading-tight">{client.name}</h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Mail className="w-3 h-3 text-slate-300" />
+                      <span className="text-[11px] font-bold text-slate-400 truncate">{client.email}</span>
+                    </div>
+                  </div>
+
+                  {client.website && (
+                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <LinkIcon className="w-3 h-3 text-primary/40" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary/50 group-hover:text-primary transition-colors">Digital Portal</span>
+                      </div>
+                      <a
+                        href={client.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-black text-slate-300 hover:text-slate-800 transition-colors"
+                      >
+                        Visit Site ↗
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-# OpinionInsights Survey Routing Platform
+# Redirect Setup Integration
 
 ## Overview
 A full-stack B2B survey panel management and routing system. Admins create projects (surveys), generate unique tracking URLs, distribute them to suppliers/respondents, and the system automatically routes each respondent to the correct survey vendor URL based on their response outcome.

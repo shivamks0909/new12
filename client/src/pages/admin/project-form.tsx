@@ -1,686 +1,561 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, useParams } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { insertProjectSchema, insertSupplierSchema } from "@shared/schema";
-import type { Project, Client, Supplier } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import React, { useState, Fragment, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, RefreshCw } from "lucide-react";
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Settings2,
+  Globe,
+  Users,
+  Link as LinkIcon,
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  Settings
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
-const projectFormSchema = insertProjectSchema.extend({
-  name: z.string().min(1, "Name is required"),
-  pid: z.string().min(1, "PID is required"),
-  surveyUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  completeUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  terminateUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  quotafullUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  securityTerminateUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  prescreenerUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-});
-
-type ProjectFormValues = z.infer<typeof projectFormSchema>;
-
-const supplierFormSchema = insertSupplierSchema.omit({ projectId: true }).extend({
-  name: z.string().min(1, "Supplier name is required"),
-  supplierCode: z.string().min(1, "Supplier code is required"),
-});
-
-type SupplierFormValues = z.infer<typeof supplierFormSchema>;
-
-function generatePid(): string {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  let result = "";
-  for (let i = 0; i < 3; i++) {
-    result += letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-  for (let i = 0; i < 5; i++) {
-    result += Math.floor(Math.random() * 10).toString();
-  }
-  return result;
-}
+type CountryRow = {
+  id: string; // temp uuid for key
+  country_code: string;
+  survey_url: string;
+  status: 'active' | 'paused';
+};
 
 export default function ProjectFormPage() {
-  const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const isEditing = Boolean(params.id);
-  const projectId = params.id ? parseInt(params.id) : null;
 
-  const { data: existingProject, isLoading: isLoadingProject } = useQuery<Project>({
-    queryKey: ["/api/projects", projectId],
-    enabled: isEditing && projectId !== null,
+  const [formData, setFormData] = useState({
+    // Step 1
+    project_name: '',
+    project_code: '',
+    client: '',
+    status: 'active',
+    // RID config
+    rid_prefix: '',
+    rid_country_code: '',
+    rid_padding: 4,
+    rid_counter: 1,
+    // Step 2
+    countries: [] as CountryRow[],
+    // Step 3
+    supplier_id: '',
   });
 
-  const { data: clients } = useQuery<Client[]>({
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // Fetch data
+  const { data: suppliers = [] } = useQuery<any[]>({
+    queryKey: ["/api/suppliers"],
+  });
+
+  const { data: clients = [] } = useQuery<any[]>({
     queryKey: ["/api/clients"],
   });
 
-  const { data: existingSuppliers, isLoading: isLoadingSuppliers } = useQuery<Supplier[]>({
-    queryKey: ["/api/projects", projectId, "suppliers"],
-    enabled: isEditing && projectId !== null,
-  });
-
-  const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(projectFormSchema),
-    defaultValues: {
-      name: "",
-      pid: generatePid(),
-      clientId: null,
-      status: "active",
-      surveyUrl: "",
-      completeUrl: "",
-      terminateUrl: "",
-      quotafullUrl: "",
-      securityTerminateUrl: "",
-      prescreenerUrl: "",
-      cpi: null,
-      expectedCompletes: null,
-      country: "",
-      loi: null,
-      ir: null,
-    },
-  });
-
-  useEffect(() => {
-    if (existingProject) {
-      form.reset({
-        name: existingProject.name,
-        pid: existingProject.pid,
-        clientId: existingProject.clientId,
-        status: existingProject.status,
-        surveyUrl: existingProject.surveyUrl || "",
-        completeUrl: existingProject.completeUrl || "",
-        terminateUrl: existingProject.terminateUrl || "",
-        quotafullUrl: existingProject.quotafullUrl || "",
-        securityTerminateUrl: existingProject.securityTerminateUrl || "",
-        prescreenerUrl: existingProject.prescreenerUrl || "",
-        cpi: existingProject.cpi,
-        expectedCompletes: existingProject.expectedCompletes,
-        country: existingProject.country || "",
-        loi: existingProject.loi,
-        ir: existingProject.ir,
-      });
-    }
-  }, [existingProject, form]);
-
-  const saveMutation = useMutation({
-    mutationFn: async (data: ProjectFormValues) => {
-      const cleanData = {
-        ...data,
-        surveyUrl: data.surveyUrl || null,
-        completeUrl: data.completeUrl || null,
-        terminateUrl: data.terminateUrl || null,
-        quotafullUrl: data.quotafullUrl || null,
-        securityTerminateUrl: data.securityTerminateUrl || null,
-        prescreenerUrl: data.prescreenerUrl || null,
-        country: data.country || null,
-      };
-
-      if (isEditing && projectId) {
-        await apiRequest("PATCH", `/api/projects/${projectId}`, cleanData);
-      } else {
-        await apiRequest("POST", "/api/projects", cleanData);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: isEditing ? "Project updated" : "Project created" });
-      setLocation("/admin/projects");
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const [supplierName, setSupplierName] = useState("");
-  const [supplierCode, setSupplierCode] = useState("");
-  const [supplierCompleteUrl, setSupplierCompleteUrl] = useState("");
-  const [supplierTerminateUrl, setSupplierTerminateUrl] = useState("");
-  const [supplierQuotafullUrl, setSupplierQuotafullUrl] = useState("");
-  const [supplierSecurityUrl, setSupplierSecurityUrl] = useState("");
-
-  const addSupplierMutation = useMutation({
-    mutationFn: async () => {
-      if (!projectId) throw new Error("Save the project first before adding suppliers");
-      const data = {
-        name: supplierName,
-        supplierCode: supplierCode,
-        completeUrl: supplierCompleteUrl || null,
-        terminateUrl: supplierTerminateUrl || null,
-        quotafullUrl: supplierQuotafullUrl || null,
-        securityUrl: supplierSecurityUrl || null,
-        status: "active",
-      };
-      const parsed = supplierFormSchema.safeParse(data);
-      if (!parsed.success) {
-        throw new Error("Supplier name and code are required");
-      }
-      await apiRequest("POST", `/api/projects/${projectId}/suppliers`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "suppliers"] });
-      setSupplierName("");
-      setSupplierCode("");
-      setSupplierCompleteUrl("");
-      setSupplierTerminateUrl("");
-      setSupplierQuotafullUrl("");
-      setSupplierSecurityUrl("");
-      toast({ title: "Supplier added" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteSupplierMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/suppliers/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "suppliers"] });
-      toast({ title: "Supplier removed" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const onSubmit = (data: ProjectFormValues) => {
-    saveMutation.mutate(data);
+  const update = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    setErrors((prev: any) => ({ ...prev, [field]: '' }));
   };
 
-  if (isEditing && isLoadingProject) {
-    return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-96" />
-      </div>
-    );
-  }
+  const validateStep1 = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.project_name.trim() || formData.project_name.length < 2)
+      newErrors.project_name = 'Project name is required';
+    if (!formData.project_code.trim())
+      newErrors.project_code = 'Project code is required';
+    else if (!/^[A-Z0-9]{3,}$/.test(formData.project_code))
+      newErrors.project_code = 'Code must be uppercase alphanumeric, min 3 chars';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = (): boolean => {
+    if (formData.countries.length === 0) {
+      setErrors({ countries: 'Add at least one country' });
+      return false;
+    }
+    for (const c of formData.countries) {
+      if (!c.country_code || c.country_code.length !== 2) {
+        setErrors({ countries: 'Invalid ISO code' });
+        return false;
+      }
+      if (!c.survey_url.trim()) {
+        setErrors({ countries: 'Survey URL missing' });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const addCountry = () => {
+    setFormData((prev: any) => ({
+      ...prev,
+      countries: [...prev.countries, {
+        id: crypto.randomUUID(),
+        country_code: '',
+        survey_url: '',
+        status: 'active'
+      }]
+    }));
+  };
+
+  const removeCountry = (id: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      countries: prev.countries.filter((c: any) => c.id !== id)
+    }));
+  };
+
+  const updateCountry = (id: string, field: string, value: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      countries: prev.countries.map((c: any) =>
+        c.id === id ? { ...c, [field]: value } : c
+      )
+    }));
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const projectRes = await apiRequest("POST", "/api/projects", {
+        projectName: formData.project_name,
+        projectCode: formData.project_code.toUpperCase(),
+        client: formData.client,
+        status: formData.status,
+        ridPrefix: formData.rid_prefix,
+        ridCountryCode: formData.rid_country_code,
+        ridPadding: formData.rid_padding,
+        ridCounter: formData.rid_counter,
+      });
+      const project = await projectRes.json();
+
+      if (formData.countries.length > 0) {
+        for (const c of formData.countries) {
+          await apiRequest("POST", `/api/projects/${project.id}/surveys`, {
+            countryCode: c.country_code.toUpperCase(),
+            surveyUrl: c.survey_url,
+            status: c.status,
+            projectCode: project.projectCode
+          });
+        }
+      }
+
+      toast({ title: "Project successfully initialized" });
+      setLocation(`/admin/projects`);
+
+    } catch (error: any) {
+      toast({ title: "Initialization error", description: error.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const steps = ['General Info', 'Country Setup', 'Supplier Config', 'Review & Launch'];
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setLocation("/admin/projects")}
-          data-testid="button-back-projects"
-        >
-          <ArrowLeft />
-        </Button>
+    <div className="space-y-10 pb-20">
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-6 border-b border-slate-200/60">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-form-title">
-            {isEditing ? "Edit Project" : "New Project"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isEditing ? "Update project settings" : "Configure a new survey project"}
-          </p>
+          <button
+            onClick={() => setLocation('/admin/projects')}
+            className="text-slate-400 hover:text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 transition-all group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+            Return to Fleet
+          </button>
+          <h1 className="text-3xl font-black tracking-tight text-slate-800">Project Architect</h1>
+          <p className="text-sm text-slate-400 mt-1 font-bold">Configure routing parameters and regional endpoints</p>
         </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="My Survey Project" {...field} data-testid="input-project-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+      <div className="max-w-4xl mx-auto">
+        {/* Step Indicator */}
+        <div className="mb-14 px-4 overflow-x-auto no-scrollbar py-2">
+          <div className="flex items-center gap-2 min-w-[600px] justify-between">
+            {steps.map((step, i) => (
+              <Fragment key={i}>
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "size-10 rounded-2xl flex items-center justify-center font-black text-xs transition-all duration-500",
+                    currentStep > i + 1
+                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200"
+                      : currentStep === i + 1
+                        ? "bg-primary text-white scale-110 shadow-xl shadow-primary/20 ring-4 ring-primary/5"
+                        : "bg-slate-100 text-slate-400"
+                  )}>
+                    {currentStep > i + 1 ? <CheckCircle2 className="size-5" /> : i + 1}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-widest transition-colors duration-300",
+                      currentStep === i + 1 ? "text-slate-800" : "text-slate-300"
+                    )}>
+                      Step {i + 1}
+                    </span>
+                    <span className={cn(
+                      "text-[11px] font-bold transition-colors duration-300 whitespace-nowrap",
+                      currentStep === i + 1 ? "text-primary" : "text-slate-400"
+                    )}>
+                      {step}
+                    </span>
+                  </div>
+                </div>
+                {i < steps.length - 1 && (
+                  <div className={cn(
+                    "flex-1 h-px min-w-[30px] mx-2 transition-colors duration-500",
+                    currentStep > i + 1 ? "bg-emerald-200" : "bg-slate-100"
+                  )} />
+                )}
+              </Fragment>
+            ))}
+          </div>
+        </div>
 
-                <FormField
-                  control={form.control}
-                  name="pid"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project ID (PID)</FormLabel>
-                      <div className="flex gap-2">
-                        <FormControl>
-                          <Input placeholder="OPI25505" {...field} data-testid="input-project-pid" />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => form.setValue("pid", generatePid())}
-                          data-testid="button-generate-pid"
-                        >
-                          <RefreshCw />
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+        {/* Form Card */}
+        <Card className="bg-white/40 border-slate-200/60 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-slate-200/20 overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none group-hover:rotate-12 transition-transform duration-700">
+            <Settings className="w-48 h-48" />
+          </div>
+          <CardContent className="p-10 relative z-10">
+            <div className="mb-12">
+              <h2 className="text-xl font-black text-slate-800 tracking-tight mb-1">
+                {currentStep}: {steps[currentStep - 1]}
+              </h2>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {currentStep === 1 && "Core campaign metadata and ID generation rules"}
+                {currentStep === 2 && "Regional exit nodes and target survey mapping"}
+                {currentStep === 3 && "Primary traffic aggregator assignment"}
+                {currentStep === 4 && "Final telemetry audit and link generation"}
+              </p>
+            </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Client</FormLabel>
-                      <Select
-                        onValueChange={(val) => field.onChange(val === "none" ? null : parseInt(val))}
-                        value={field.value?.toString() || "none"}
+            <div className="space-y-10">
+              {currentStep === 1 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">Project Identifier</label>
+                      <input
+                        placeholder="e.g. Q4 Consumer Pulse"
+                        value={formData.project_name}
+                        onChange={e => update('project_name', e.target.value)}
+                        className={cn(
+                          "w-full h-14 bg-white/60 border-slate-200/60 rounded-2xl px-6 font-bold text-slate-800 focus:ring-4 focus:ring-primary/5 transition-all outline-none",
+                          errors.project_name && "border-rose-500 bg-rose-50/30"
+                        )}
+                      />
+                      {errors.project_name && <p className="text-rose-500 text-[10px] font-black uppercase ml-1">{errors.project_name}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">System Code (PID)</label>
+                      <input
+                        placeholder="PROJECT_X_2024"
+                        value={formData.project_code}
+                        onChange={e => update('project_code', e.target.value.toUpperCase().replace(/\s/g, ''))}
+                        className={cn(
+                          "w-full h-14 bg-white/60 border-slate-200/60 rounded-2xl px-6 font-mono font-black text-slate-800 focus:ring-4 focus:ring-primary/5 transition-all outline-none",
+                          errors.project_code && "border-rose-500 bg-rose-50/30"
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">Client Nexus</label>
+                      <select
+                        value={formData.client}
+                        onChange={e => update('client', e.target.value)}
+                        className="w-full h-14 bg-white/60 border-slate-200/60 rounded-2xl px-6 font-bold text-slate-800 focus:ring-4 focus:ring-primary/5 transition-all outline-none"
                       >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-client">
-                            <SelectValue placeholder="Select a client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No client</SelectItem>
-                          {clients?.map((client) => (
-                            <SelectItem key={client.id} value={client.id.toString()}>
-                              {client.name} ({client.company})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <option value="">Select Internal or Agency</option>
+                        {clients.map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-slate-400 text-[10px] font-black uppercase tracking-widest ml-1">Operational Status</label>
+                      <select
+                        value={formData.status}
+                        onChange={e => update('status', e.target.value)}
+                        className="w-full h-14 bg-white/60 border-slate-200/60 rounded-2xl px-6 font-black text-[11px] uppercase tracking-widest text-slate-800 outline-none focus:ring-4 focus:ring-primary/5 transition-all"
+                      >
+                        <option value="active">Active</option>
+                        <option value="paused">Paused</option>
+                      </select>
+                    </div>
+                  </div>
 
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-status">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="paused">Paused</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="surveyUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Survey URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://survey.example.com/start" {...field} value={field.value || ""} data-testid="input-survey-url" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Project Parameters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <FormField
-                  control={form.control}
-                  name="cpi"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CPI ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="5.00"
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
-                          data-testid="input-cpi"
+                  {/* RID Block */}
+                  <div className="md:col-span-2 mt-10 p-10 bg-slate-50 shadow-inner rounded-[2.5rem] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 grayscale">
+                      <Settings2 className="w-16 h-16" />
+                    </div>
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-8 ml-1">RID Sequence Logic</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-slate-400 text-[9px] font-black uppercase tracking-widest ml-1">Key Prefix</label>
+                        <input
+                          type="text"
+                          value={formData.rid_prefix}
+                          onChange={e => update('rid_prefix', e.target.value.toUpperCase())}
+                          className="w-full h-12 bg-white/80 border-slate-200 rounded-xl px-4 font-mono font-black"
+                          placeholder="PRX"
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="loi"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>LOI (minutes)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="15"
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
-                          data-testid="input-loi"
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-slate-400 text-[9px] font-black uppercase tracking-widest ml-1">Locale Tag</label>
+                        <input
+                          type="text"
+                          maxLength={2}
+                          value={formData.rid_country_code}
+                          onChange={e => update('rid_country_code', e.target.value.toUpperCase())}
+                          className="w-full h-12 bg-white/80 border-slate-200 rounded-xl px-4 font-mono font-black placeholder:opacity-30"
+                          placeholder="US"
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ir"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>IR (%)</FormLabel>
-                      <FormControl>
-                        <Input
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-slate-400 text-[9px] font-black uppercase tracking-widest ml-1">Length Padding</label>
+                        <input
                           type="number"
-                          placeholder="50"
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
-                          data-testid="input-ir"
+                          value={formData.rid_padding}
+                          onChange={e => update('rid_padding', parseInt(e.target.value) || 4)}
+                          className="w-full h-12 bg-white/80 border-slate-200 rounded-xl px-4 font-black"
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      </div>
+                    </div>
 
-                <FormField
-                  control={form.control}
-                  name="expectedCompletes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expected Completes</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="500"
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
-                          data-testid="input-expected-completes"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                    <div className="mt-10 flex items-center justify-between gap-6 flex-wrap">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Telemetry ID Sample</span>
+                        <span className="text-2xl font-black text-slate-800 tracking-tighter">
+                          {formData.rid_prefix}{formData.rid_country_code}<span className="text-primary">{String(formData.rid_counter).padStart(formData.rid_padding, '0')}</span>
+                        </span>
+                      </div>
+                      <div className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full font-black text-[9px] uppercase tracking-widest shadow-sm">
+                        Pattern Validated
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div className="mt-4">
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input placeholder="US" {...field} value={field.value || ""} data-testid="input-country" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              {currentStep === 2 && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-100 rounded-xl">
+                        <Globe className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Exit Node Mapping</h3>
+                    </div>
+                    <button
+                      onClick={addCountry}
+                      className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Append Locale
+                    </button>
+                  </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Redirect URLs</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="completeUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Complete URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-complete-url" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <div className="bg-slate-50 rounded-[2rem] border border-slate-200 p-1 overflow-hidden shadow-inner">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-white/40 border-b border-slate-200">
+                          <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest text-slate-400 w-32">ISO Tag</th>
+                          <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest text-slate-400">Target Endpoint (Survey URL)</th>
+                          <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest text-slate-400 w-24 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.countries.map(row => (
+                          <tr key={row.id} className="group/row hover:bg-white/80 transition-all border-b border-slate-100 last:border-none">
+                            <td className="px-8 py-4">
+                              <input
+                                value={row.country_code}
+                                onChange={e => updateCountry(row.id, 'country_code', e.target.value.toUpperCase())}
+                                maxLength={2}
+                                className="w-16 h-10 bg-white border border-slate-200 rounded-lg px-3 text-sm font-black text-center focus:ring-4 focus:ring-primary/5 transition-all outline-none"
+                                placeholder="..."
+                              />
+                            </td>
+                            <td className="px-8 py-4">
+                              <input
+                                value={row.survey_url}
+                                onChange={e => updateCountry(row.id, 'survey_url', e.target.value)}
+                                className="w-full h-10 bg-white border border-slate-200 rounded-lg px-4 text-xs font-bold text-slate-600 focus:ring-4 focus:ring-primary/5 transition-all outline-none"
+                                placeholder="https://client-survey.com/start?id={RID}"
+                              />
+                            </td>
+                            <td className="px-8 py-4 text-center">
+                              <button
+                                onClick={() => removeCountry(row.id)}
+                                className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {formData.countries.length === 0 && (
+                      <div className="py-24 flex flex-col items-center justify-center opacity-20">
+                        <Globe className="w-16 h-16 mb-4" />
+                        <span className="font-black uppercase tracking-[0.3em] text-[10px]">Registry Empty</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                <FormField
-                  control={form.control}
-                  name="terminateUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Terminate URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-terminate-url" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {currentStep === 3 && (
+                <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-500">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-primary/10 rounded-2xl">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Aggregator Assignment</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Select the primary traffic origin cluster</p>
+                    </div>
+                  </div>
 
-                <FormField
-                  control={form.control}
-                  name="quotafullUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quota Full URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-quotafull-url" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <div className="grid gap-6">
+                    <select
+                      value={formData.supplier_id}
+                      onChange={e => update('supplier_id', e.target.value)}
+                      className="w-full h-16 bg-white/80 border-slate-200 rounded-2xl px-6 font-black text-sm uppercase tracking-widest text-slate-700 focus:ring-4 focus:ring-primary/5 transition-all outline-none shadow-sm"
+                    >
+                      <option value="">Manually Configure Later</option>
+                      {suppliers.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.code})
+                        </option>
+                      ))}
+                    </select>
 
-                <FormField
-                  control={form.control}
-                  name="securityTerminateUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Security Terminate URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-security-terminate-url" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                    <div className="p-8 bg-blue-50/50 border border-blue-100 rounded-3xl group/info">
+                      <p className="text-[11px] font-bold text-blue-600 leading-relaxed uppercase tracking-wide">
+                        Selection Note: Assigning an aggregator now will automatically generate the corresponding universal tracking endpoints for all defined regional nodes once the project is initialized.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <FormField
-                control={form.control}
-                name="prescreenerUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prescreener URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-prescreener-url" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+              {currentStep === 4 && (
+                <div className="space-y-10 animate-in zoom-in-95 duration-700">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="p-8 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 group/audit">
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        Audit Log
+                      </h4>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Name</span>
+                          <span className="text-[13px] font-black text-slate-800 tracking-tight">{formData.project_name}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Fleet Code</span>
+                          <span className="text-[13px] font-black text-primary font-mono">{formData.project_code}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Logic</span>
+                          <span className="text-[13px] font-black text-slate-800 font-mono">
+                            {formData.rid_prefix}-*{formData.rid_country_code}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-          {isEditing && projectId && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                <CardTitle className="text-lg">Suppliers</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {isLoadingSuppliers ? (
-                  <Skeleton className="h-20" />
-                ) : (
-                  <>
-                    {existingSuppliers && existingSuppliers.length > 0 && (
-                      <div className="space-y-3">
-                        {existingSuppliers.map((supplier) => (
-                          <div
-                            key={supplier.id}
-                            className="flex items-start justify-between gap-3 p-3 rounded-md border"
-                            data-testid={`card-supplier-${supplier.id}`}
-                          >
-                            <div className="space-y-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm" data-testid={`text-supplier-name-${supplier.id}`}>
-                                  {supplier.name}
-                                </span>
-                                <code className="text-xs bg-secondary px-1.5 py-0.5 rounded-md font-mono">
-                                  {supplier.supplierCode}
-                                </code>
-                              </div>
-                              {supplier.completeUrl && (
-                                <p className="text-xs text-muted-foreground truncate">Complete: {supplier.completeUrl}</p>
-                              )}
-                              {supplier.terminateUrl && (
-                                <p className="text-xs text-muted-foreground truncate">Terminate: {supplier.terminateUrl}</p>
-                              )}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => deleteSupplierMutation.mutate(supplier.id)}
-                              data-testid={`button-delete-supplier-${supplier.id}`}
-                            >
-                              <Trash2 />
-                            </Button>
+                    <div className="p-8 bg-white/40 border border-slate-100 rounded-[2.5rem] shadow-sm">
+                      <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-6">Regional Targets</h4>
+                      <div className="space-y-3 max-h-[160px] overflow-y-auto no-scrollbar">
+                        {formData.countries.map(c => (
+                          <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100">
+                            <span className="text-xs font-black text-slate-800">{c.country_code}</span>
+                            <span className="text-[10px] font-bold text-slate-300 truncate max-w-[140px]">{c.survey_url}</span>
                           </div>
                         ))}
                       </div>
-                    )}
-
-                    <div className="border rounded-md p-4 space-y-3">
-                      <p className="text-sm font-medium">Add Supplier</p>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <Input
-                          placeholder="Supplier name"
-                          value={supplierName}
-                          onChange={(e) => setSupplierName(e.target.value)}
-                          data-testid="input-supplier-name"
-                        />
-                        <Input
-                          placeholder="Supplier code"
-                          value={supplierCode}
-                          onChange={(e) => setSupplierCode(e.target.value)}
-                          data-testid="input-supplier-code"
-                        />
-                        <Input
-                          placeholder="Complete URL"
-                          value={supplierCompleteUrl}
-                          onChange={(e) => setSupplierCompleteUrl(e.target.value)}
-                          data-testid="input-supplier-complete-url"
-                        />
-                        <Input
-                          placeholder="Terminate URL"
-                          value={supplierTerminateUrl}
-                          onChange={(e) => setSupplierTerminateUrl(e.target.value)}
-                          data-testid="input-supplier-terminate-url"
-                        />
-                        <Input
-                          placeholder="Quota Full URL"
-                          value={supplierQuotafullUrl}
-                          onChange={(e) => setSupplierQuotafullUrl(e.target.value)}
-                          data-testid="input-supplier-quotafull-url"
-                        />
-                        <Input
-                          placeholder="Security URL"
-                          value={supplierSecurityUrl}
-                          onChange={(e) => setSupplierSecurityUrl(e.target.value)}
-                          data-testid="input-supplier-security-url"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => addSupplierMutation.mutate()}
-                        disabled={addSupplierMutation.isPending || !supplierName || !supplierCode}
-                        data-testid="button-add-supplier"
-                      >
-                        <Plus />
-                        Add Supplier
-                      </Button>
                     </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  </div>
 
-          {!isEditing && (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground">
-                  Save the project first, then you can add suppliers from the edit page.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+                  <div className="p-10 bg-primary/5 border border-primary/10 rounded-[2.5rem] group/final">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-primary rounded-xl shadow-lg shadow-primary/20">
+                        <LinkIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-primary">Live Nexus Endpoint (Preview)</h3>
+                    </div>
+                    <div className="p-6 bg-white border border-primary/20 rounded-2xl shadow-inner group-hover/final:border-primary/40 transition-all">
+                      <code className="text-[11px] font-black font-mono text-primary/80 break-all leading-relaxed tracking-tight">
+                        {window.location.origin}/track?code={formData.project_code}&country=[CC]&uid=[RID]
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              type="submit"
-              disabled={saveMutation.isPending}
-              data-testid="button-save-project"
-            >
-              {saveMutation.isPending ? "Saving..." : isEditing ? "Update Project" : "Create Project"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setLocation("/admin/projects")}
-              data-testid="button-cancel"
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </Form>
+              {/* Navigation Buttons */}
+              <div className="flex items-center justify-between mt-16 pt-10 border-t border-slate-100">
+                <div>
+                  {currentStep > 1 && (
+                    <button
+                      onClick={() => setCurrentStep(s => s - 1)}
+                      disabled={submitting}
+                      className="h-14 px-8 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center gap-3 disabled:opacity-30"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Go Back
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-4">
+                  {currentStep < 4 ? (
+                    <button
+                      className="h-14 px-12 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-200 transition-all flex items-center gap-3 hover:scale-[1.03] active:scale-95"
+                      onClick={() => {
+                        let valid = true;
+                        if (currentStep === 1) valid = validateStep1();
+                        if (currentStep === 2) valid = validateStep2();
+                        if (valid) setCurrentStep(s => s + 1);
+                      }}
+                    >
+                      Next Phase <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="h-16 px-16 bg-primary text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 flex items-center gap-4 transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+                    >
+                      {submitting ? (
+                        "Initializing Fleet..."
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-5 h-5" /> Initialize Project
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

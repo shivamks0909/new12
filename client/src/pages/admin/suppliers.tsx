@@ -1,43 +1,18 @@
-import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { GlassButton } from "@/components/ui/glass-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -46,63 +21,44 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { StatusBadge } from "@/components/status-badge";
-import { CopyButton } from "@/components/copy-button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Trash2 } from "lucide-react";
-import type { Project, Supplier } from "@shared/schema";
-import { z } from "zod";
-
-const supplierFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  supplierCode: z.string().min(1, "Supplier code is required"),
-  completeUrl: z.string().optional().default(""),
-  terminateUrl: z.string().optional().default(""),
-  quotafullUrl: z.string().optional().default(""),
-  securityUrl: z.string().optional().default(""),
-  status: z.string().default("active"),
-});
-
-type SupplierFormValues = z.infer<typeof supplierFormSchema>;
+import { Plus, Trash2, ClipboardList, Link2, Copy, Check } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertSupplierSchema } from "@shared/schema";
+import type { Supplier } from "@shared/schema";
+import { useState } from "react";
 
 export default function SuppliersPage() {
   const { toast } = useToast();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const { data: projectsList, isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+  const { data: suppliers, isLoading } = useQuery<Supplier[]>({
+    queryKey: ["/api/suppliers"],
   });
 
-  const { data: suppliersList, isLoading: suppliersLoading } = useQuery<Supplier[]>({
-    queryKey: ["/api/projects", selectedProjectId, "suppliers"],
-    enabled: !!selectedProjectId,
-  });
-
-  const form = useForm<SupplierFormValues>({
-    resolver: zodResolver(supplierFormSchema),
+  const form = useForm({
+    resolver: zodResolver(insertSupplierSchema),
     defaultValues: {
       name: "",
-      supplierCode: "",
+      code: "",
       completeUrl: "",
       terminateUrl: "",
       quotafullUrl: "",
       securityUrl: "",
-      status: "active",
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: SupplierFormValues) => {
-      await apiRequest("POST", `/api/projects/${selectedProjectId}/suppliers`, data);
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/suppliers", data);
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "suppliers"] });
-      setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+      toast({ title: "Supplier registered successfully" });
       form.reset();
-      toast({ title: "Supplier added" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -114,262 +70,177 @@ export default function SuppliersPage() {
       await apiRequest("DELETE", `/api/suppliers/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "suppliers"] });
-      toast({ title: "Supplier deleted" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+      toast({ title: "Supplier removed from nexus" });
     },
   });
 
-  const openCreate = () => {
-    form.reset({
-      name: "",
-      supplierCode: "",
-      completeUrl: "",
-      terminateUrl: "",
-      quotafullUrl: "",
-      securityUrl: "",
-      status: "active",
-    });
-    setDialogOpen(true);
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+    toast({ title: "Link copied to clipboard" });
   };
-
-  const onSubmit = (data: SupplierFormValues) => {
-    createMutation.mutate(data);
-  };
-
-  const selectedProject = projectsList?.find((p) => String(p.id) === selectedProjectId);
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-semibold" data-testid="text-suppliers-title">Suppliers</h1>
-        {selectedProjectId && (
-          <Button onClick={openCreate} data-testid="button-add-supplier">
-            <Plus />
-            Add Supplier
-          </Button>
-        )}
+    <div className="space-y-10 pb-12">
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-6 border-b border-slate-200/60">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Supplier Network</h1>
+          <p className="text-sm text-slate-400 mt-1 font-bold">Manage traffic originators and dynamic callback parameters</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <button className="bg-primary text-white hover:bg-primary/90 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]">
+              <Plus className="h-4 w-4" />
+              Register Source
+            </button>
+          </DialogTrigger>
+          <DialogContent className="bg-white/95 backdrop-blur-3xl border-slate-200 rounded-[2.5rem] max-w-2xl shadow-2xl p-0 overflow-hidden">
+            <div className="p-10">
+              <DialogHeader className="mb-8">
+                <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-xl">
+                    <ClipboardList className="w-5 h-5 text-primary" />
+                  </div>
+                  Supply Integration
+                </DialogTitle>
+                <DialogDescription className="text-slate-400 font-medium">Configure a new traffic source with custom callback telemetry.</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-6">
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Supplier Entity</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g. Dynata Global" {...field} className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/5 transition-all text-slate-800" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Unique Identifier (TAG)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="DYN01" {...field} className="h-12 bg-slate-50 border-slate-200 rounded-xl focus:ring-4 focus:ring-primary/5 transition-all text-slate-800 font-mono" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 border-b border-primary/10 pb-2">Callback Telemetry</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {["completeUrl", "terminateUrl", "quotafullUrl", "securityUrl"].map((fieldName) => (
+                        <FormField
+                          key={fieldName}
+                          control={form.control}
+                          name={fieldName as any}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                {fieldName.replace('Url', '').toUpperCase()} Entry
+                              </FormLabel>
+                              <FormControl>
+                                <Input placeholder="https://..." {...field} className="h-10 bg-slate-50 border-slate-200 rounded-xl text-xs text-slate-800" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <DialogFooter className="pt-6">
+                    <button type="submit" disabled={createMutation.isPending} className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.01] transition-all disabled:opacity-50">
+                      {createMutation.isPending ? "Processing Nexus..." : "Synchronize Supplier"}
+                    </button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Select Project</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="w-full max-w-sm" data-testid="select-project">
-              <SelectValue placeholder="Choose a project..." />
-            </SelectTrigger>
-            <SelectContent>
-              {projectsList?.map((p) => (
-                <SelectItem key={p.id} value={String(p.id)}>
-                  {p.name} ({p.pid})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <div className="grid gap-8 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-[2.5rem] bg-white/20" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2">
+          {suppliers?.map((supplier) => (
+            <Card key={supplier.id} className="bg-white/40 border-slate-200/60 backdrop-blur-2xl rounded-[2.5rem] shadow-xl shadow-slate-200/10 overflow-hidden group hover:bg-white/60 hover:border-white transition-all duration-500">
+              <CardHeader className="p-8 border-b border-slate-100 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-primary/10 rounded-2xl group-hover:bg-primary transition-colors duration-500">
+                    <ClipboardList className="h-5 w-5 text-primary group-hover:text-white transition-colors duration-500" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-black text-slate-800 tracking-tight">{supplier.name}</CardTitle>
+                    <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nexus Node: {supplier.code}</CardDescription>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm(`Remove ${supplier.name} from nexus?`)) {
+                      deleteMutation.mutate(supplier.id);
+                    }
+                  }}
+                  className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                      <Link2 className="w-3 h-3" />
+                      Universal Routing Link
+                    </span>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 group/link relative mb-4">
+                    <code className="text-[11px] break-all font-mono text-slate-500 block leading-relaxed pr-10">
+                      {window.location.origin}/track?code=[PID]&country=[CC]&sup={supplier.code}&uid=[RID]
+                    </code>
+                    <button
+                      onClick={() => handleCopy(`${window.location.origin}/track?code=[PID]&country=[CC]&sup=${supplier.code}&uid=[RID]`, supplier.code)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-primary/10 rounded-lg transition-all"
+                    >
+                      {copiedId === supplier.code ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-slate-300 hover:text-primary transition-colors" />}
+                    </button>
+                  </div>
+                </div>
 
-      {selectedProjectId && (
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">
-              Suppliers for {selectedProject?.name || ""}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {suppliersLoading || projectsLoading ? (
-              <div className="p-6 space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Complete URL</TableHead>
-                    <TableHead>Terminate URL</TableHead>
-                    <TableHead className="w-16">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {suppliersList?.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        No suppliers for this project
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {suppliersList?.map((s) => (
-                    <TableRow key={s.id} data-testid={`row-supplier-${s.id}`}>
-                      <TableCell className="font-medium" data-testid={`text-supplier-name-${s.id}`}>
-                        {s.name}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm" data-testid={`text-supplier-code-${s.id}`}>
-                        {s.supplierCode}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={s.status} />
-                      </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        {s.completeUrl ? (
-                          <div className="flex items-center gap-1">
-                            <span className="truncate text-sm text-muted-foreground">{s.completeUrl}</span>
-                            <CopyButton value={s.completeUrl} />
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        {s.terminateUrl ? (
-                          <div className="flex items-center gap-1">
-                            <span className="truncate text-sm text-muted-foreground">{s.terminateUrl}</span>
-                            <CopyButton value={s.terminateUrl} />
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              data-testid={`button-delete-supplier-${s.id}`}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete {s.name}? This cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(s.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
+                <div className="grid grid-cols-2 gap-4">
+                  {["Complete", "Terminate"].map((label) => (
+                    <div key={label} className="p-4 rounded-2xl bg-white/40 border border-slate-100 flex flex-col gap-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">{label} Target</span>
+                      <span className="text-xs font-black text-slate-700 truncate opacity-60">
+                        {supplier[`${label.toLowerCase()}Url` as keyof Supplier] || "Not Defined"}
+                      </span>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Supplier</DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-supplier-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="supplierCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Supplier Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-supplier-code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="completeUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Complete URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} data-testid="input-supplier-complete-url" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="terminateUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Terminate URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} data-testid="input-supplier-terminate-url" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="quotafullUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quota Full URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} data-testid="input-supplier-quotafull-url" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="securityUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Security URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} data-testid="input-supplier-security-url" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="submit" disabled={createMutation.isPending} data-testid="button-save-supplier">
-                  {createMutation.isPending ? "Adding..." : "Add Supplier"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

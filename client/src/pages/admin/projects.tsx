@@ -1,26 +1,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLocation } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
+import { GlassButton } from "@/components/ui/glass-button";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
-import { CopyButton } from "@/components/copy-button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Project, Client } from "@shared/schema";
-import { Plus, FolderOpen, Globe, Users, BarChart3, Pencil, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Switch } from "@/components/ui/switch";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Plus, Trash2, FolderKanban, BarChart3, Globe2 } from "lucide-react";
+import type { Project } from "@shared/schema";
 
 export default function ProjectsPage() {
   const [, setLocation] = useLocation();
@@ -30,204 +18,115 @@ export default function ProjectsPage() {
     queryKey: ["/api/projects"],
   });
 
-  const { data: clients } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
-  });
-
-  const toggleStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      await apiRequest("PATCH", `/api/projects/${id}`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/projects/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project deleted" });
+      toast({ title: "Project moved to archive" });
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
-  const getClientName = (clientId: number | null) => {
-    if (!clientId || !clients) return "No client";
-    const client = clients.find((c) => c.id === clientId);
-    return client ? client.name : "Unknown";
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-9 w-36" />
+  return (
+    <div className="space-y-10 pb-12">
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-6 border-b border-slate-200/60">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Research Campaigns</h1>
+          <p className="text-sm text-slate-400 mt-1 font-bold">Orchestrate and monitor your active survey assets</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-48" />
+        <button
+          onClick={() => setLocation("/admin/projects/new")}
+          className="bg-primary text-white hover:bg-primary/90 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Plus className="h-4 w-4" />
+          Create Campaign
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-[2.5rem] bg-white/20" />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-projects-title">Projects</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your survey projects
+      ) : projects?.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-32 rounded-[3rem] bg-white/40 border-2 border-dashed border-slate-200 group">
+          <div className="p-6 bg-slate-50 rounded-full mb-6 group-hover:scale-110 transition-transform duration-500">
+            <FolderKanban className="w-12 h-12 text-slate-300" />
+          </div>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">Zero Active Campaigns</h2>
+          <p className="text-slate-400 text-sm mt-2 max-w-md text-center font-medium">
+            Your campaign listing is currently vacant. Initiate your first research project to begin trajectory tracking.
           </p>
+          <button
+            onClick={() => setLocation("/admin/projects/new")}
+            className="mt-8 text-primary font-black text-xs uppercase tracking-widest hover:underline decoration-2 underline-offset-8"
+          >
+            Initiate First Launch →
+          </button>
         </div>
-        <Button
-          onClick={() => setLocation("/admin/projects/new")}
-          data-testid="button-create-project"
-        >
-          <Plus />
-          New Project
-        </Button>
-      </div>
-
-      {projects && projects.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-lg font-medium" data-testid="text-no-projects">
-              No projects yet
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Create your first project to get started
-            </p>
-            <Button
-              className="mt-4"
-              onClick={() => setLocation("/admin/projects/new")}
-              data-testid="button-create-first-project"
-            >
-              <Plus />
-              Create Project
-            </Button>
-          </CardContent>
-        </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {projects?.map((project) => (
-            <Card key={project.id} data-testid={`card-project-${project.id}`}>
-              <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
-                <div className="space-y-1 min-w-0">
-                  <CardTitle className="text-base font-semibold truncate" data-testid={`text-project-name-${project.id}`}>
-                    {project.name}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <code className="text-xs bg-secondary px-1.5 py-0.5 rounded-md font-mono" data-testid={`text-project-pid-${project.id}`}>
-                      {project.pid}
-                    </code>
-                    <CopyButton value={project.pid} />
-                  </div>
-                </div>
-                <StatusBadge status={project.status} />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4 shrink-0" />
-                  <span className="truncate" data-testid={`text-project-client-${project.id}`}>
-                    {getClientName(project.clientId)}
-                  </span>
-                </div>
-
-                {project.country && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Globe className="h-4 w-4 shrink-0" />
-                    <span data-testid={`text-project-country-${project.id}`}>{project.country}</span>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                  {project.cpi != null && (
-                    <span data-testid={`text-project-cpi-${project.id}`}>CPI: ${project.cpi.toFixed(2)}</span>
-                  )}
-                  {project.loi != null && (
-                    <span data-testid={`text-project-loi-${project.id}`}>LOI: {project.loi}m</span>
-                  )}
-                  {project.ir != null && (
-                    <span data-testid={`text-project-ir-${project.id}`}>IR: {project.ir}%</span>
-                  )}
-                </div>
-
-                {project.expectedCompletes != null && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <BarChart3 className="h-4 w-4 shrink-0" />
-                    <span data-testid={`text-project-expected-${project.id}`}>
-                      Target: {project.expectedCompletes} completes
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-2 pt-2 border-t">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {project.status === "active" ? "Active" : "Paused"}
-                    </span>
-                    <Switch
-                      checked={project.status === "active"}
-                      onCheckedChange={(checked) =>
-                        toggleStatusMutation.mutate({
-                          id: project.id,
-                          status: checked ? "active" : "paused",
-                        })
-                      }
-                      data-testid={`switch-project-status-${project.id}`}
-                    />
+            <Card key={project.id} className="bg-white/40 border-slate-200/60 backdrop-blur-2xl rounded-[2.5rem] shadow-xl shadow-slate-200/10 overflow-hidden group hover:bg-white/60 hover:border-white hover:shadow-2xl transition-all duration-500">
+              <CardContent className="p-0">
+                <div className="p-8 space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1.5 overflow-hidden">
+                      <h3
+                        className="font-black text-slate-800 text-xl tracking-tighter truncate group-hover:text-primary transition-colors cursor-pointer"
+                        onClick={() => setLocation(`/admin/projects/${project.projectCode}`)}
+                      >
+                        {project.projectName}
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 leading-none">
+                          REF: {project.projectCode}
+                        </span>
+                        <StatusBadge status={project.status || 'active'} className="scale-75 origin-left" />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setLocation(`/admin/projects/${project.id}/edit`)}
-                      data-testid={`button-edit-project-${project.id}`}
+                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100/60">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Target Reached</span>
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3 h-3 text-slate-400" />
+                        <span className="text-sm font-black text-slate-700">1.2k+</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Global Reach</span>
+                      <div className="flex items-center gap-1">
+                        <Globe2 className="w-3 h-3 text-slate-400" />
+                        <span className="text-sm font-black text-slate-700">Multi</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      onClick={() => setLocation(`/admin/projects/${project.projectCode}`)}
+                      className="flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-black text-[10px] uppercase tracking-widest group/btn"
                     >
-                      <Pencil />
-                    </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          data-testid={`button-delete-project-${project.id}`}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{project.name}"? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteMutation.mutate(project.id)}
-                            data-testid="button-confirm-delete"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      Analyze Hub
+                      <BarChart3 className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Archive ${project.projectName}?`)) {
+                          deleteMutation.mutate(project.id);
+                        }
+                      }}
+                      className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </CardContent>
