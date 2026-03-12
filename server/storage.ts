@@ -774,4 +774,4 @@ async function seedAdmin(storage: IStorage) {
 
 export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
 
-seedAdmin(storage).catch(console.error);
+export { seedAdmin };

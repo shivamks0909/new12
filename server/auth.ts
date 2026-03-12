@@ -17,14 +17,22 @@ export function setupAuth(app: Express) {
 
   console.log("setupAuth: process.env.DATABASE_URL is", process.env.DATABASE_URL ? "defined" : "undefined");
 
-  const sessionStore = process.env.DATABASE_URL
-    ? new PgSession({
-      pool,
-      createTableIfMissing: true,
-      // Suppress advisory lock issues if using Supabase transaction pooler on Vercel
-      pruneSessionInterval: false,
-    })
-    : undefined;
+  let sessionStore;
+  try {
+    sessionStore = process.env.DATABASE_URL
+      ? new PgSession({
+        pool,
+        createTableIfMissing: true,
+        tableName: 'session',
+        // Disable prune interval for serverless to prevent background activity
+        pruneSessionInterval: false,
+        // Suppress advisory lock issues if using Supabase transaction pooler on Vercel
+        errorLog: console.error
+      })
+      : undefined;
+  } catch (err) {
+    console.error("Failed to initialize session store:", err);
+  }
 
   console.log("setupAuth: sessionStore is", sessionStore ? "created" : "undefined");
 

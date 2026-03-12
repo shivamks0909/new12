@@ -1,6 +1,5 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import { setupAuth, requireAdmin } from "./auth";
 import {
   insertProjectSchema,
@@ -18,11 +17,16 @@ import { eq, desc } from "drizzle-orm";
 import { generateS2SToken, verifyS2SToken } from "./s2s";
 import { generateExcelReport } from "./lib/export-excel-server";
 
+import { storage, seedAdmin } from "./storage";
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+
+  // Seed admin in the background
+  seedAdmin(storage).catch(err => console.error("Admin seeding failed:", err));
 
   // AUTH ROUTES
   app.post("/api/auth/login", async (req: Request, res: Response) => {
