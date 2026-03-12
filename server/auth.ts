@@ -19,6 +19,7 @@ export function setupAuth(app: Express) {
 
   let sessionStore;
   try {
+    console.log("setupAuth: Attempting to create PgSession store...");
     sessionStore = process.env.DATABASE_URL
       ? new PgSession({
         pool,

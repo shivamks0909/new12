@@ -59,7 +59,9 @@ app.use((req, res, next) => {
   next();
 });
 
+log("Initializing routes...");
 registerRoutes(httpServer, app);
+log("Routes registered.");
 
 app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
