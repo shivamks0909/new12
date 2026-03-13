@@ -497,14 +497,16 @@ export class DatabaseStorage implements IStorage {
     const dbAssignment: any = {
       project_code: a.projectCode,
       country_code: a.countryCode,
-      supplier_id: a.supplierId,
-      status: a.status,
-      complete_url: a.completeUrl,
-      terminate_url: a.terminateUrl,
-      quotafull_url: a.quotafullUrl,
-      security_url: a.securityUrl
+      supplier_id: a.supplierId || null,
+      generated_link: a.generatedLink,
+      status: a.status || 'active',
+      notes: a.notes || null,
     };
-    const { data } = await insforge.database.from("supplier_assignments").insert([dbAssignment]).select().single();
+    const { data, error } = await insforge.database.from("supplier_assignments").insert([dbAssignment]).select().single();
+    if (error) {
+      console.error("DB insert error for supplier_assignments:", error);
+      throw new Error(`Failed to create supplier assignment: ${error.message}`);
+    }
     if (!data) throw new Error("Failed to create supplier assignment");
     return data;
   }
