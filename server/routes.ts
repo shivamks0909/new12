@@ -687,23 +687,18 @@ export async function registerRoutes(
 
     // 8. Replace Placeholders in Final URL
     if (finalRedirectUrl.includes('{') || finalRedirectUrl.includes('[') || finalRedirectUrl.includes('{{')) {
-      finalRedirectUrl = finalRedirectUrl
-        .replaceAll("{{RID}}", sanitizedRid)
-        .replaceAll("{{rid}}", sanitizedRid)
-        .replaceAll("{{uid}}", sanitizedRid)
-        .replaceAll("{{UID}}", sanitizedRid)
-        .replaceAll("{RID}", sanitizedRid)
-        .replaceAll("[RID]", sanitizedRid)
-        .replaceAll("{rid}", sanitizedRid)
-        .replaceAll("{uid}", sanitizedRid)
-        .replaceAll("[UID]", sanitizedRid)
-        .replaceAll("{{PID}}", respondent.projectCode)
-        .replaceAll("{{pid}}", respondent.projectCode)
-        .replaceAll("{PID}", respondent.projectCode)
-        .replaceAll("[PID]", respondent.projectCode)
-        .replaceAll("{pid}", respondent.projectCode)
-        .replaceAll("{{oi_session}}", respondent.oiSession)
-        .replaceAll("{oi_session}", respondent.oiSession);
+      const replacements: Record<string, string> = {
+        'rid': sanitizedRid,
+        'uid': sanitizedRid,
+        'pid': respondent.projectCode || '',
+        'oi_session': respondent.oiSession
+      };
+      
+      for (const [key, val] of Object.entries(replacements)) {
+        // Match {{key}}, {key}, [key] in any case
+        const regex = new RegExp(`\\{\\{${key}\\}\\}|\\{${key}\\}|\\[${key}\\]`, 'gi');
+        finalRedirectUrl = finalRedirectUrl.replace(regex, val);
+      }
     }
 
     return res.redirect(finalRedirectUrl);
