@@ -124,7 +124,7 @@ export async function registerRoutes(
       r.status,
       r.s2sVerified ? "Yes" : "No",
       r.fraudScore?.toString() || "0",
-      r.startedAt.toISOString(),
+      r.startedAt ? r.startedAt.toISOString() : '',
       `"${r.ipAddress || ""}"`,
       `"${(r.userAgent || "").replace(/"/g, '""')}"`
     ]);
@@ -518,7 +518,7 @@ export async function registerRoutes(
         
         // Also update respondent fraud flag
         await db.update(respondents)
-          .set({ fraudScore: 1.0, status: 'fraud' })
+          .set({ fraudScore: "1.0", status: 'fraud' })
           .where(eq(respondents.oiSession, respondent.oiSession));
       }
     }

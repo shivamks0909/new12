@@ -94,7 +94,7 @@ export default function LinkGeneratorPage() {
     const activeProjects = projects.filter(p => p.status === 'active');
 
     // Link Generation Logic
-    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
     
     const generateLink = (projCode: string, countryCode: string, supplierCode: string) => {
         return `${baseUrl}/track?code=${projCode}&country=${countryCode}&sup=${supplierCode}&uid=[UID]`;

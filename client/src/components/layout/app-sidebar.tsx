@@ -40,6 +40,7 @@ export function AppSidebar({ username }: AppSidebarProps) {
             await apiRequest("POST", "/api/auth/logout");
         },
         onSuccess: () => {
+            localStorage.removeItem("nexus_auth_token");
             queryClient.clear();
             setLocation("/login");
         },

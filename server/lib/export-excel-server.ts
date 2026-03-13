@@ -250,7 +250,7 @@ export async function generateExcelReport(params: {
       ua.os, 
       ua.browser, 
       ua.device, 
-      new Date(r.startedAt).toLocaleString(), 
+      r.startedAt ? new Date(r.startedAt).toLocaleString() : '—', 
       r.completedAt ? new Date(r.completedAt).toLocaleString() : '—', 
       duration,
       r.userAgent || '—', 

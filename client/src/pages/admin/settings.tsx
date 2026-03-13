@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Lock, Trash2, ShieldCheck, Database } from "lucide-react";
 import { z } from "zod";
-import type { SurveyResponse } from "@shared/schema";
+import type { Respondent } from "@shared/schema";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -53,7 +53,7 @@ export default function SettingsPage() {
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
 
-  const { data: responsesData } = useQuery<{ data: SurveyResponse[]; total: number }>({
+  const { data: responsesData } = useQuery<{ data: Respondent[]; total: number }>({
     queryKey: ["/api/responses", "?limit=1"],
   });
 
@@ -78,7 +78,7 @@ export default function SettingsPage() {
       const res = await apiRequest("GET", "/api/responses?limit=10000");
       const result = await res.json();
       if (result.data && result.data.length > 0) {
-        const ids = result.data.map((r: SurveyResponse) => r.id);
+        const ids = result.data.map((r: Respondent) => r.id);
         await apiRequest("DELETE", "/api/responses/bulk", { ids });
       }
     },

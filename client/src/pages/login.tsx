@@ -41,7 +41,11 @@ export default function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
       const res = await apiRequest("POST", "/api/auth/login", data);
-      return await res.json();
+      const result = await res.json();
+      if (result.token) {
+        localStorage.setItem("nexus_auth_token", result.token);
+      }
+      return result;
     },
     onSuccess: () => {
       setLocation("/admin/dashboard");
