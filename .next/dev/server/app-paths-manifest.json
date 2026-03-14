@@ -1,12 +1,16 @@
 {
   "/[[...slug]]/page": "app/[[...slug]]/page.js",
   "/api/admin/stats/route": "app/api/admin/stats/route.js",
+  "/api/admin/suppliers/access/route": "app/api/admin/suppliers/access/route.js",
+  "/api/admin/suppliers/users/route": "app/api/admin/suppliers/users/route.js",
   "/api/auth/login/route": "app/api/auth/login/route.js",
   "/api/auth/me/route": "app/api/auth/me/route.js",
-  "/api/link-generator/assignments/route": "app/api/link-generator/assignments/route.js",
   "/api/projects/[id]/surveys/route": "app/api/projects/[id]/surveys/route.js",
   "/api/projects/route": "app/api/projects/route.js",
+  "/api/supplier/auth/login/route": "app/api/supplier/auth/login/route.js",
+  "/api/supplier/auth/me/route": "app/api/supplier/auth/me/route.js",
+  "/api/supplier/dashboard/route": "app/api/supplier/dashboard/route.js",
+  "/api/supplier/responses/route": "app/api/supplier/responses/route.js",
   "/api/suppliers/route": "app/api/suppliers/route.js",
-  "/complete/route": "app/complete/route.js",
-  "/r/[code]/route": "app/r/[code]/route.js"
+  "/track/route": "app/track/route.js"
 }

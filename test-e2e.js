@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://opinion-insights-router.vercel.app';
 
 async function test() {
   console.log('--- Testing E2E Flow ---');

@@ -1,13 +1,15 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, requireAdmin } from "./auth";
+import { setupAuth, requireAdmin, requireSupplier } from "./auth";
 import {
   insertProjectSchema,
   insertSupplierSchema,
   insertCountrySurveySchema,
   insertRespondentSchema,
   insertActivityLogSchema,
-  insertSupplierAssignmentSchema
+  insertSupplierAssignmentSchema,
+  insertSupplierUserSchema,
+  insertSupplierProjectAccessSchema
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
@@ -395,6 +397,163 @@ export async function registerRoutes(
   app.delete("/api/clients/:id", requireAdmin, async (req: Request, res: Response) => {
     await storage.deleteClient(req.params.id as string);
     return res.json({ message: "Deleted" });
+  });
+
+  // ====== SUPPLIER PORTAL AUTH ======
+  app.post("/api/supplier/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+
+      const user = await storage.getSupplierUserByUsername(username);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ message: "Invalid credentials or account inactive" });
+      }
+
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      req.session.supplierUserId = user.id;
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session save failed" });
+        return res.json({ id: user.id, username: user.username, supplierCode: user.supplierCode });
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/supplier/auth/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) return res.status(500).json({ message: "Logout failed" });
+      res.clearCookie("connect.sid");
+      return res.json({ message: "Logged out" });
+    });
+  });
+
+  app.get("/api/supplier/auth/me", async (req: Request, res: Response) => {
+    if (!req.session.supplierUserId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getSupplierUserById(req.session.supplierUserId);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    return res.json({ id: user.id, username: user.username, supplierCode: user.supplierCode });
+  });
+
+  // ====== ADMIN SUPPLIER MANAGEMENT ======
+  app.get("/api/admin/suppliers/users", requireAdmin, async (_req: Request, res: Response) => {
+    const users = await storage.listSupplierUsers();
+    return res.json(users);
+  });
+
+  app.post("/api/admin/suppliers/users", requireAdmin, async (req: Request, res: Response) => {
+    const parsed = insertSupplierUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+    }
+    
+    // Hash password before saving
+    const passwordHash = await bcrypt.hash(req.body.password || req.body.passwordHash || "supplier123", 10);
+    const user = await storage.createSupplierUser({
+      ...parsed.data,
+      passwordHash,
+      createdBy: "admin"
+    });
+    return res.status(201).json(user);
+  });
+
+  app.patch("/api/admin/suppliers/users/:id", requireAdmin, async (req: Request, res: Response) => {
+    const updateData = { ...req.body };
+    if (updateData.password || updateData.passwordHash) {
+      updateData.passwordHash = await bcrypt.hash(updateData.password || updateData.passwordHash, 10);
+      delete updateData.password;
+    }
+    const user = await storage.updateSupplierUser(req.params.id as string, updateData);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.json(user);
+  });
+
+  app.delete("/api/admin/suppliers/users", requireAdmin, async (req: Request, res: Response) => {
+    const id = req.query.id as string;
+    if (!id) return res.status(400).json({ message: "Missing ID" });
+    await storage.deleteSupplierUser(id);
+    return res.json({ message: "Deleted" });
+  });
+
+  app.get("/api/admin/suppliers/access", requireAdmin, async (_req: Request, res: Response) => {
+    const access = await storage.listSupplierProjectAccess();
+    return res.json(access);
+  });
+
+  app.post("/api/admin/suppliers/access", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const parsed = insertSupplierProjectAccessSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+      }
+      const access = await storage.assignProjectToSupplier({
+        ...parsed.data,
+        assignedBy: (req.user as any)?.username || "admin"
+      });
+      return res.status(201).json(access);
+    } catch (error: any) {
+      console.error("Assignment error:", error);
+      if (error.code === '23505') {
+        return res.status(409).json({ message: "Project already assigned to this user" });
+      }
+      return res.status(500).json({ message: error.message || "Failed to assign project" });
+    }
+  });
+
+  app.delete("/api/admin/suppliers/access", requireAdmin, async (req: Request, res: Response) => {
+    const id = req.query.id as string;
+    if (!id) return res.status(400).json({ message: "Missing ID" });
+    await storage.removeProjectFromSupplier(id);
+    return res.json({ message: "Deleted" });
+  });
+
+  // ====== SUPPLIER PORTAL ENDPOINTS ======
+  app.get("/api/supplier/dashboard", requireSupplier, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getSupplierUserById(req.session.supplierUserId!);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      
+      const stats = await storage.getSupplierDashboardStats(user.id, user.supplierCode);
+      const projects = await storage.getAssignedProjects(user.id);
+      
+      return res.json({
+        ...stats,
+        assignedProjects: projects
+      });
+    } catch (error) {
+      console.error("Dashboard error:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data" });
+    }
+  });
+
+  app.get("/api/supplier/stats", requireSupplier, async (req: Request, res: Response) => {
+    const user = await storage.getSupplierUserById(req.session.supplierUserId!);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const stats = await storage.getSupplierDashboardStats(user.id, user.supplierCode);
+    return res.json(stats);
+  });
+
+  app.get("/api/supplier/assigned-projects", requireSupplier, async (req: Request, res: Response) => {
+    const projects = await storage.getAssignedProjects(req.session.supplierUserId!);
+    return res.json(projects);
+  });
+
+  app.get("/api/supplier/responses", requireSupplier, async (req: Request, res: Response) => {
+    const user = await storage.getSupplierUserById(req.session.supplierUserId!);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    const access = await storage.getSupplierProjectAccess(user.id);
+    const projectCodes = access.map(a => a.projectCode);
+    
+    const respondents = await storage.getSupplierRespondents(user.supplierCode, projectCodes);
+    return res.json(respondents);
   });
 
   // ====== REDIRECT TRACKING ENDPOINT (/track and /t/:code) ======

@@ -51,6 +51,9 @@
       ],
       "@assets/*": [
         "./attached_assets/*"
+      ],
+      "@lib/*": [
+        "./lib/*"
       ]
     },
     "target": "ES2017",

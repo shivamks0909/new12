@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storage } from "@server/storage";
-import { randomUUID } from "crypto";
+import crypto, { randomUUID } from "crypto";
 import { generateS2SToken } from "@server/s2s";
 
 export async function handleTracking(req: NextRequest, projectCodeParam?: string) {
@@ -113,6 +113,11 @@ export async function handleTracking(req: NextRequest, projectCodeParam?: string
       s2sToken = generateS2SToken(oiSession, s2sConfig.s2sSecret);
     }
 
+    const verifyHash = crypto
+      .createHmac("sha256", process.env.JWT_SECRET || "opinion-insights-jwt-secret-2026")
+      .update(oiSession)
+      .digest("hex");
+
     await storage.createRespondent({
       oiSession,
       projectCode,
@@ -125,7 +130,9 @@ export async function handleTracking(req: NextRequest, projectCodeParam?: string
       status: "started",
       s2sToken: s2sToken || undefined,
       fraudScore: 0,
-      s2sVerified: false
+      s2sVerified: false,
+      surveyUrl: countrySurvey.surveyUrl,
+      verifyHash: verifyHash
     });
 
     // 6. Log Entry

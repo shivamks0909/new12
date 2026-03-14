@@ -231,6 +231,7 @@ const mapCountrySurvey = (data)=>({
     });
 const mapSupplier = (data)=>({
         ...data,
+        passwordHash: data.password_hash,
         completeUrl: data.complete_url,
         terminateUrl: data.terminate_url,
         quotafullUrl: data.quotafull_url,
@@ -253,7 +254,27 @@ const mapRespondent = (data)=>({
         completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
         ipAddress: data.ip_address,
         userAgent: data.user_agent,
-        surveyUrl: data.survey_url
+        surveyUrl: data.survey_url,
+        redirectUrl: data.redirect_url,
+        verifyHash: data.verify_hash
+    });
+const mapSupplierUser = (data)=>({
+        ...data,
+        passwordHash: data.password_hash,
+        supplierId: data.supplier_id,
+        supplierCode: data.supplier_code,
+        isActive: data.is_active,
+        lastLogin: data.last_login ? new Date(data.last_login) : undefined,
+        createdAt: data.created_at ? new Date(data.created_at) : undefined,
+        createdBy: data.created_by
+    });
+const mapSupplierProjectAccess = (data)=>({
+        ...data,
+        userId: data.user_id,
+        projectId: data.project_id,
+        projectCode: data.project_code,
+        assignedAt: data.assigned_at ? new Date(data.assigned_at) : undefined,
+        assignedBy: data.assigned_by
     });
 class DatabaseStorage {
     async getAdminByUsername(username) {
@@ -292,7 +313,7 @@ class DatabaseStorage {
         return data ? mapProject(data) : undefined;
     }
     async getProjectByCode(projectCode) {
-        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("projects").select("*").eq("project_code", projectCode).single();
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("projects").select("*").eq("project_code", projectCode).maybeSingle();
         return data ? mapProject(data) : undefined;
     }
     async createProject(project) {
@@ -355,7 +376,7 @@ class DatabaseStorage {
         return (data || []).map(mapCountrySurvey);
     }
     async getCountrySurveyByCode(projectCode, countryCode) {
-        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("country_surveys").select("*").eq("project_code", projectCode).eq("country_code", countryCode).single();
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("country_surveys").select("*").eq("project_code", projectCode).eq("country_code", countryCode).maybeSingle();
         return data ? mapCountrySurvey(data) : undefined;
     }
     async createCountrySurvey(survey) {
@@ -390,7 +411,7 @@ class DatabaseStorage {
         return data ? mapSupplier(data) : undefined;
     }
     async getSupplierByCode(code) {
-        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("suppliers").select("*").eq("code", code).single();
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("suppliers").select("*").eq("code", code).maybeSingle();
         return data ? mapSupplier(data) : undefined;
     }
     async createSupplier(supplier) {
@@ -400,7 +421,8 @@ class DatabaseStorage {
             complete_url: supplier.completeUrl,
             terminate_url: supplier.terminateUrl,
             quotafull_url: supplier.quotafullUrl,
-            security_url: supplier.securityUrl
+            security_url: supplier.securityUrl,
+            password_hash: supplier.passwordHash || null
         };
         const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("suppliers").insert([
             dbSupplier
@@ -416,11 +438,17 @@ class DatabaseStorage {
         if (supplier.terminateUrl !== undefined) dbSupplier.terminate_url = supplier.terminateUrl;
         if (supplier.quotafullUrl !== undefined) dbSupplier.quotafull_url = supplier.quotafullUrl;
         if (supplier.securityUrl !== undefined) dbSupplier.security_url = supplier.securityUrl;
+        if (supplier.passwordHash !== undefined) dbSupplier.password_hash = supplier.passwordHash;
         const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("suppliers").update(dbSupplier).eq("id", id).select().single();
         return data ? mapSupplier(data) : undefined;
     }
     async deleteSupplier(id) {
         await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("suppliers").delete().eq("id", id);
+    }
+    async updateSupplierPassword(id, hash) {
+        await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("suppliers").update({
+            password_hash: hash
+        }).eq("id", id);
     }
     // Respondents
     async createRespondent(respondent) {
@@ -437,7 +465,8 @@ class DatabaseStorage {
             s2s_token: respondent.s2sToken,
             ip_address: respondent.ipAddress,
             user_agent: respondent.userAgent,
-            survey_url: respondent.surveyUrl || null
+            survey_url: respondent.surveyUrl || respondent.surveyUrl || null,
+            verify_hash: respondent.verifyHash || respondent.verifyHash || null
         };
         const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").insert([
             dbRespondent
@@ -446,14 +475,18 @@ class DatabaseStorage {
         return mapRespondent(data);
     }
     async getRespondentBySession(oiSession) {
-        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*").eq("oi_session", oiSession).single();
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*").eq("oi_session", oiSession).maybeSingle();
         return data ? mapRespondent(data) : undefined;
     }
-    async updateRespondentStatus(oiSession, status) {
-        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").update({
+    async updateRespondentStatus(oiSession, status, redirectUrl) {
+        const updateData = {
             status,
             completed_at: status !== 'started' ? new Date() : null
-        }).eq("oi_session", oiSession).select().single();
+        };
+        if (redirectUrl) {
+            updateData.redirect_url = redirectUrl;
+        }
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").update(updateData).eq("oi_session", oiSession).select().single();
         return data ? mapRespondent(data) : undefined;
     }
     async checkDuplicateRespondent(projectCode, supplierCode, supplierRid) {
@@ -782,6 +815,166 @@ class DatabaseStorage {
             };
         });
     }
+    // Supplier Portal Implementation
+    async getSupplierUserByUsername(username) {
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_users").select("*").eq("username", username).maybeSingle();
+        return data ? mapSupplierUser(data) : undefined;
+    }
+    async getSupplierUserById(id) {
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_users").select("*").eq("id", id).maybeSingle();
+        return data ? mapSupplierUser(data) : undefined;
+    }
+    async getSupplierProjectAccess(userId) {
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_project_access").select("*").eq("user_id", userId);
+        return (data || []).map(mapSupplierProjectAccess);
+    }
+    async getAssignedProjects(userId) {
+        // Join project access with projects table
+        const access = await this.getSupplierProjectAccess(userId);
+        if (access.length === 0) return [];
+        const projectIds = access.map((a)=>a.projectId);
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("projects").select("*").in("id", projectIds);
+        return (data || []).map(mapProject);
+    }
+    async createSupplierUser(user) {
+        const dbUser = {
+            username: user.username,
+            password_hash: user.passwordHash,
+            supplier_id: user.supplierId,
+            supplier_code: user.supplierCode,
+            is_active: user.isActive,
+            created_by: user.createdBy
+        };
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_users").insert([
+            dbUser
+        ]).select().single();
+        if (!data) throw new Error("Failed to create supplier user");
+        return mapSupplierUser(data);
+    }
+    async updateSupplierUser(id, user) {
+        const dbUser = {};
+        if (user.username) dbUser.username = user.username;
+        if (user.passwordHash) dbUser.password_hash = user.passwordHash;
+        if (user.supplierId) dbUser.supplier_id = user.supplierId;
+        if (user.supplierCode) dbUser.supplier_code = user.supplierCode;
+        if (user.isActive !== undefined) dbUser.is_active = user.isActive;
+        if (user.lastLogin) dbUser.last_login = user.lastLogin;
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_users").update(dbUser).eq("id", id).select().single();
+        return data ? mapSupplierUser(data) : undefined;
+    }
+    async getSupplierDashboardStats(userId, supplierCode) {
+        const access = await this.getSupplierProjectAccess(userId);
+        const projectCodes = access.map((a)=>a.projectCode);
+        if (projectCodes.length === 0) {
+            return {
+                totalProjects: 0,
+                totalRespondents: 0,
+                completes: 0,
+                terminates: 0,
+                quotafulls: 0,
+                securityTerminates: 0,
+                activityData: []
+            };
+        }
+        const { count: totalProjects } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_project_access").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("user_id", userId);
+        const { count: totalRespondents } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).in("project_code", projectCodes);
+        const { count: completes } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).in("project_code", projectCodes).eq("status", "complete");
+        const { count: terminates } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).in("project_code", projectCodes).eq("status", "terminate");
+        const { count: quotafulls } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).in("project_code", projectCodes).eq("status", "quotafull");
+        const { count: securityTerminates } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).in("project_code", projectCodes).eq("status", "security-terminate");
+        return {
+            totalProjects: totalProjects || 0,
+            totalRespondents: totalRespondents || 0,
+            completes: completes || 0,
+            terminates: terminates || 0,
+            quotafulls: quotafulls || 0,
+            securityTerminates: securityTerminates || 0,
+            activityData: []
+        };
+    }
+    async getSupplierRespondents(supplierCode, projectCodes) {
+        if (projectCodes.length === 0) return [];
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*").eq("supplier_code", supplierCode).in("project_code", projectCodes).order("started_at", {
+            ascending: false
+        });
+        return (data || []).map(mapRespondent);
+    }
+    async listSupplierUsers() {
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_users").select("*").order("created_at", {
+            ascending: false
+        });
+        return (data || []).map(mapSupplierUser);
+    }
+    async listSupplierProjectAccess() {
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_project_access").select("*").order("assigned_at", {
+            ascending: false
+        });
+        return (data || []).map(mapSupplierProjectAccess);
+    }
+    async assignProjectToSupplier(access) {
+        const dbAccess = {
+            user_id: access.userId,
+            project_id: access.projectId,
+            project_code: access.projectCode,
+            assigned_by: access.assignedBy
+        };
+        const { data } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_project_access").insert([
+            dbAccess
+        ]).select().single();
+        if (!data) throw new Error("Failed to assign project to supplier");
+        return mapSupplierProjectAccess(data);
+    }
+    async removeProjectFromSupplier(id) {
+        await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_project_access").delete().eq("id", id);
+    }
+    async deleteSupplierUser(id) {
+        await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("supplier_users").delete().eq("id", id);
+    }
+    async getSupplierStatsOverview(supplierCode) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString();
+        const { count: completed } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).eq("status", "complete").gte("started_at", todayStr);
+        const { count: disqualified } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).eq("status", "terminate").gte("started_at", todayStr);
+        const { count: quotafull } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).eq("status", "quotafull").gte("started_at", todayStr);
+        const { count: security } = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$insforge$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["insforge"].database.from("respondents").select("*", {
+            count: 'exact',
+            head: true
+        }).eq("supplier_code", supplierCode).eq("status", "security-terminate").gte("started_at", todayStr);
+        return {
+            completed: completed || 0,
+            disqualified: disqualified || 0,
+            quotafull: quotafull || 0,
+            security: security || 0
+        };
+    }
 }
 const storage = new DatabaseStorage();
 async function seedAdmin(storage) {
@@ -849,7 +1042,9 @@ async function handleTracking(req, projectCodeParam) {
     const sup = searchParams.get("sup");
     const uid = searchParams.get("uid");
     if (!code || !country) {
-        return new Response(`Missing tracking parameters (code: ${code}, country: ${country})`, {
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: `Missing tracking parameters (code: ${code}, country: ${country})`
+        }, {
             status: 400
         });
     }
@@ -885,33 +1080,39 @@ async function handleTracking(req, projectCodeParam) {
     }
     const supplierRid = rawUid || `DIR-${oiSession.split('-')[0]}`;
     try {
-        // 1. Validate Project
+        // 1. Validate Project and Supplier
+        console.log(`[Tracking] Querying project by code: ${projectCode}`);
         const project = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].getProjectByCode(projectCode);
         if (!project || project.status !== "active") {
             console.log(`Tracking 404: Project not found or inactive. Code: ${projectCode}`);
-            return new Response("Project not found or inactive", {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: `Project not found or inactive (code: ${projectCode})`
+            }, {
                 status: 404
             });
         }
-        // Validate Supplier only if provided
-        if (sup) {
-            const supplier = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].getSupplierByCode(supplierCode);
-            if (!supplier) {
-                console.log(`Tracking 404: Supplier not found. Code: ${supplierCode}`);
-                return new Response("Supplier not found", {
-                    status: 404
-                });
-            }
+        console.log(`[Tracking] Querying supplier by code: ${supplierCode}`);
+        const supplier = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].getSupplierByCode(supplierCode);
+        if (!supplier) {
+            console.log(`Tracking 404: Supplier not found. Code: ${supplierCode}`);
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: `Supplier not found (code: ${supplierCode})`
+            }, {
+                status: 404
+            });
         }
-        // 2. Validate Country Survey
+        // 3. Get Country Survey
+        console.log(`[Tracking] Looking for survey: project=${projectCode}, country=${countryCode}`);
         const countrySurvey = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].getCountrySurveyByCode(projectCode, countryCode);
-        if (!countrySurvey || countrySurvey.status !== "active") {
-            console.log(`Tracking 404: Survey not found for country. Code: ${projectCode}, Country: ${countryCode}`);
-            return new Response("Survey not found for this country", {
+        if (!countrySurvey) {
+            console.log(`[Tracking] Error: Survey not found for project=${projectCode}, country=${countryCode}`);
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: `Survey not found for this country (code: ${projectCode}, country: ${countryCode})`
+            }, {
                 status: 404
             });
         }
-        // 3. Check for Duplicates
+        console.log(`[Tracking] Found survey: ${countrySurvey.id}, URL: ${countrySurvey.surveyUrl}`);
         const isDuplicate = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].checkDuplicateRespondent(projectCode, supplierCode, supplierRid);
         const currentTimeUnix = Math.floor(Date.now() / 1000).toString();
         const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
@@ -947,6 +1148,7 @@ async function handleTracking(req, projectCodeParam) {
         if (s2sConfig && s2sConfig.requireS2S) {
             s2sToken = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$s2s$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["generateS2SToken"])(oiSession, s2sConfig.s2sSecret);
         }
+        const verifyHash = __TURBOPACK__imported__module__$5b$externals$5d2f$crypto__$5b$external$5d$__$28$crypto$2c$__cjs$29$__["default"].createHmac("sha256", process.env.JWT_SECRET || "opinion-insights-jwt-secret-2026").update(oiSession).digest("hex");
         await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].createRespondent({
             oiSession,
             projectCode,
@@ -959,7 +1161,9 @@ async function handleTracking(req, projectCodeParam) {
             status: "started",
             s2sToken: s2sToken || undefined,
             fraudScore: 0,
-            s2sVerified: false
+            s2sVerified: false,
+            surveyUrl: countrySurvey.surveyUrl,
+            verifyHash: verifyHash
         });
         // 6. Log Entry
         await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$storage$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["storage"].createActivityLog({
@@ -973,7 +1177,12 @@ async function handleTracking(req, projectCodeParam) {
         // 7. Redirect to Client Survey URL — inject clientRid and arbitrary params
         let redirectUrl = countrySurvey.surveyUrl.replaceAll("{RID}", clientRid).replaceAll("[RID]", clientRid).replaceAll("{rid}", clientRid).replaceAll("{uid}", clientRid).replaceAll("[UID]", clientRid).replaceAll("{oi_session}", oiSession);
         // Support arbitrary parameters from query string
-        const usedParams = new Set();
+        const usedParams = new Set([
+            "country",
+            "sup",
+            "uid",
+            "code"
+        ]);
         Object.entries(extraParams).forEach(([key, value])=>{
             const keyLower = key.toLowerCase();
             const hasPlaceholder = redirectUrl.includes(`{${key}}`) || redirectUrl.includes(`[${key}]`) || redirectUrl.includes(`{${keyLower}}`) || redirectUrl.includes(`[${keyLower}]`);
@@ -1007,7 +1216,9 @@ async function handleTracking(req, projectCodeParam) {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].redirect(new URL(redirectUrl, req.url));
     } catch (err) {
         console.error("Tracking Error:", err);
-        return new Response("Internal Server Error during tracking", {
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "Internal Server Error during tracking"
+        }, {
             status: 500
         });
     }

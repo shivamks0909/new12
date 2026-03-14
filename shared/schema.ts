@@ -48,10 +48,11 @@ export const suppliers = pgTable("suppliers", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
+  passwordHash: text("password_hash"), // Added for direct supplier login
   completeUrl: text("complete_url"),
   terminateUrl: text("terminate_url"),
   quotafullUrl: text("quotafull_url"),
-  security_url: text("security_url"), // Match legacy if needed, or stick to camelCase
+  securityUrl: text("security_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -73,6 +74,8 @@ export const respondents = pgTable("respondents", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   surveyUrl: text("survey_url"),
+  redirectUrl: text("redirect_url"),
+  verifyHash: text("verify_hash"),
 });
 
 export const activityLogs = pgTable("activity_logs", {
@@ -113,6 +116,27 @@ export const projectS2sConfig = pgTable("project_s2s_config", {
   s2sSecret: text("s2s_secret").notNull(),
   requireS2S: boolean("require_s2s").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const supplierUsers = pgTable("supplier_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }),
+  supplierCode: text("supplier_code").notNull(),
+  isActive: boolean("is_active").default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: text("created_by"),
+});
+
+export const supplierProjectAccess = pgTable("supplier_project_access", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => supplierUsers.id, { onDelete: 'cascade' }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text("project_code").notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: text("assigned_by"),
 });
 
 // Admin
@@ -199,6 +223,7 @@ export const supplierSchema = z.object({
   id: z.string(),
   name: z.string(),
   code: z.string(),
+  passwordHash: z.string().nullable().optional(),
   completeUrl: z.string().nullable().optional(),
   terminateUrl: z.string().nullable().optional(),
   quotafullUrl: z.string().nullable().optional(),
@@ -238,6 +263,8 @@ export const respondentSchema = z.object({
   ipAddress: z.string().nullable().optional(),
   userAgent: z.string().nullable().optional(),
   surveyUrl: z.string().nullable().optional(),
+  redirectUrl: z.string().nullable().optional(),
+  verifyHash: z.string().nullable().optional(),
 });
 
 export const insertRespondentSchema = respondentSchema.omit({
@@ -323,6 +350,45 @@ export const insertProjectS2sConfigSchema = projectS2sConfigSchema.omit({
 
 export type ProjectS2sConfig = z.infer<typeof projectS2sConfigSchema>;
 export type InsertProjectS2sConfig = z.infer<typeof insertProjectS2sConfigSchema>;
+
+// Supplier Users
+export const supplierUserSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  passwordHash: z.string(),
+  supplierId: z.string(),
+  supplierCode: z.string(),
+  isActive: z.boolean().default(true),
+  lastLogin: z.date().nullable().optional(),
+  createdAt: z.date().optional(),
+  createdBy: z.string().nullable().optional(),
+});
+
+export const insertSupplierUserSchema = supplierUserSchema.omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SupplierUser = z.infer<typeof supplierUserSchema>;
+export type InsertSupplierUser = z.infer<typeof insertSupplierUserSchema>;
+
+// Supplier Project Access
+export const supplierProjectAccessSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  projectId: z.string(),
+  projectCode: z.string(),
+  assignedAt: z.date().optional(),
+  assignedBy: z.string().nullable().optional(),
+});
+
+export const insertSupplierProjectAccessSchema = supplierProjectAccessSchema.omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type SupplierProjectAccess = z.infer<typeof supplierProjectAccessSchema>;
+export type InsertSupplierProjectAccess = z.infer<typeof insertSupplierProjectAccessSchema>;
 
 // Dashboard stats type
 export type DashboardStats = {

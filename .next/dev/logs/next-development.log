@@ -1,113 +1,98 @@
-[00:00:02.531] Server  LOG     ✓ Ready in 1877ms
-[00:00:32.260] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
-[00:00:32.268] Server  LOG     InsForge Client Initialized: {}
-[00:00:32.297] Server  LOG     Login attempt for: "admin"
-[00:00:34.286] Server  LOG     Admin found: "YES"
-[00:00:34.286] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:00:34.376] Server  LOG     Password valid: true
-[00:01:11.254] Server  LOG     Login attempt for: "admin"
-[00:01:12.916] Server  LOG     Admin found: "YES"
-[00:01:12.916] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:01:12.989] Server  LOG     Password valid: true
-[00:01:21.054] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=45abfa1b-27ac-49bd-b423-f9fd90475746&rid=0002
-[00:10:12.029] Server  LOG     Login attempt for: "admin"
-[00:10:13.878] Server  LOG     Admin found: "YES"
-[00:10:13.879] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:10:13.952] Server  LOG     Password valid: true
-[00:10:17.068] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
-[00:10:17.077] Server  LOG     InsForge Client Initialized: {}
-[00:10:17.095] Server  LOG     [Tracking] Querying project by code: TEST_API_063062
-[00:10:17.374] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_063062
-[00:10:17.651] Server  LOG     [Tracking] Querying country survey: projectCode=TEST_API_063062, countryCode=US
-[00:10:20.673] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=3d0a7a4b-d8a8-4d25-b933-e2d84bb7cf19&rid=0002
-[00:10:29.369] Server  LOG     Login attempt for: "admin"
-[00:10:30.750] Server  LOG     Admin found: "YES"
-[00:10:30.750] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:10:30.823] Server  LOG     Password valid: true
-[00:10:33.164] Server  LOG     [Tracking] Querying project by code: TEST_API_079925
-[00:10:33.463] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_079925
-[00:10:33.739] Server  LOG     [Tracking] Querying country survey: projectCode=TEST_API_079925, countryCode=US
-[00:10:36.766] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=e25904e6-d953-426e-aa7f-5549c60eb04f&rid=0002
-[00:14:41.666] Server  LOG     Login attempt for: "admin"
-[00:14:43.288] Server  LOG     Admin found: "YES"
-[00:14:43.289] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:14:43.359] Server  LOG     Password valid: true
-[00:15:55.859] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
-[00:15:55.862] Server  LOG     InsForge Client Initialized: {}
-[00:15:55.876] Server  LOG     Login attempt for: "admin"
-[00:15:57.396] Server  LOG     Admin found: "YES"
-[00:15:57.397] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:15:57.480] Server  LOG     Password valid: true
-[00:15:57.633] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
-[00:15:57.636] Server  LOG     InsForge Client Initialized: {}
-[00:15:58.129] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
-[00:15:58.132] Server  LOG     InsForge Client Initialized: {}
-[00:15:58.589] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
-[00:15:58.593] Server  LOG     InsForge Client Initialized: {}
-[00:16:00.346] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
-[00:16:00.347] Server  LOG     InsForge Client Initialized: {}
-[00:16:00.357] Server  LOG     [Tracking] Querying project by code: TEST_API_406585
-[00:16:00.649] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_406585
-[00:16:00.944] Server  LOG     [Tracking] Looking for survey: project=TEST_API_406585, country=US
-[00:16:01.245] Server  LOG     [Tracking] Found survey: 5352ff9b-5842-44a3-be7c-925e25062473, URL: http://localhost:3000/survey?oi_session={oi_session}&rid={RID}
-[00:16:04.083] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=7f5287e8-ffdb-4526-8d9b-282983c96736&rid=0002
-[00:18:03.877] Server  LOG     Login attempt for: "admin"
-[00:18:05.687] Server  LOG     Admin found: "YES"
-[00:18:05.687] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:18:05.756] Server  LOG     Password valid: true
-[00:18:08.260] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
-[00:18:08.261] Server  LOG     InsForge Client Initialized: {}
-[00:18:08.272] Server  LOG     [Tracking] Querying project by code: TEST_API_534854
-[00:18:08.563] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_534854
-[00:18:08.862] Server  LOG     [Tracking] Looking for survey: project=TEST_API_534854, country=US
-[00:18:09.154] Server  LOG     [Tracking] Found survey: af0a496a-ebf6-48ff-b923-4b6f08a54a9c, URL: http://localhost:3000/survey?oi_session={oi_session}&rid={RID}
-[00:18:12.048] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=6182551a-8f04-441b-ac7b-b4290447057f&rid=0002
-[00:23:32.924] Server  LOG     Login attempt for: "admin"
-[00:23:34.681] Server  LOG     Admin found: "YES"
-[00:23:34.682] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:23:34.752] Server  LOG     Password valid: true
-[00:23:37.108] Server  LOG     [Tracking] Querying project by code: TEST_API_863854
-[00:23:37.395] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_863854
-[00:23:37.694] Server  LOG     [Tracking] Looking for survey: project=TEST_API_863854, country=US
-[00:23:37.981] Server  LOG     [Tracking] Found survey: 1fe7ca1b-6df6-483c-aabd-7631feb1d20b, URL: http://localhost:3000/survey?oi_session={oi_session}&rid={RID}
-[00:23:40.894] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=43a21d97-81dd-4999-9804-471d4e633799&rid=0002
-[00:24:43.364] Server  LOG     Login attempt for: "admin"
-[00:24:45.062] Server  LOG     Admin found: "YES"
-[00:24:45.063] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:24:45.131] Server  LOG     Password valid: true
-[00:24:47.547] Server  LOG     [Tracking] Querying project by code: TEST_API_934233
-[00:24:47.838] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_934233
-[00:24:48.125] Server  LOG     [Tracking] Looking for survey: project=TEST_API_934233, country=US
-[00:24:48.421] Server  LOG     [Tracking] Found survey: 218a088c-2dec-480d-8554-7d4d642bdf63, URL: http://localhost:3000/survey?oi_session={oi_session}&rid={RID}
-[00:24:51.320] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=06b872d5-1f97-468f-bce4-f395551d2096&rid=0002
-[00:25:29.742] Server  LOG     Login attempt for: "admin"
-[00:25:31.390] Server  LOG     Admin found: "YES"
-[00:25:31.391] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:25:31.461] Server  LOG     Password valid: true
-[00:25:33.793] Server  LOG     [Tracking] Querying project by code: TEST_API_980561
-[00:25:34.084] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_980561
-[00:25:34.370] Server  LOG     [Tracking] Looking for survey: project=TEST_API_980561, country=US
-[00:25:34.661] Server  LOG     [Tracking] Found survey: 179ab2c0-cf0b-4328-8673-c57a367088a7, URL: http://localhost:3000/survey?oi_session={oi_session}&rid={RID}
-[00:25:37.525] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=29d3f90e-2633-4900-af90-66726ddc30a5&rid=0002
-[00:25:39.149] Server  LOG     Callback Redirect: http://localhost:3000/pages/complete?pid=TEST_API_980561&uid=E2E_USER_01&ip=%3A%3A1&start=1773439986&end=1773439987&loi=0&status=complete&country=US
-[00:26:30.722] Server  LOG     Login attempt for: "admin"
-[00:26:32.482] Server  LOG     Admin found: "YES"
-[00:26:32.482] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:26:32.551] Server  LOG     Password valid: true
-[00:26:34.971] Server  LOG     [Tracking] Querying project by code: TEST_API_041646
-[00:26:35.265] Server  LOG     [Tracking] Querying supplier by code: TEST_SUP_041646
-[00:26:35.559] Server  LOG     [Tracking] Looking for survey: project=TEST_API_041646, country=US
-[00:26:35.855] Server  LOG     [Tracking] Found survey: 024abe3c-4262-432f-bd64-5358b31c4fb2, URL: http://localhost:3000/survey?oi_session={oi_session}&rid={RID}
-[00:26:38.754] Server  LOG     Tracking: Redirecting to http://localhost:3000/survey?oi_session=cff1ff4d-297a-4cfa-892e-55bdcc688e35&rid=0002
-[00:26:40.241] Server  LOG     Callback Redirect: http://localhost:3000/pages/complete?pid=TEST_API_041646&uid=E2E_USER_01&ip=%3A%3A1&start=1773440047&end=1773440049&loi=0&status=complete&country=US
-[00:31:53.389] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:32:02.458] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
-[00:32:02.461] Server  LOG     InsForge Client Initialized: {}
-[00:32:02.479] Server  LOG     Login attempt for: "admin"
-[00:32:04.329] Server  LOG     Admin found: "YES"
-[00:32:04.329] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
-[00:32:04.412] Server  LOG     Password valid: true
-[00:32:17.867] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
-[00:32:17.873] Server  LOG     InsForge Client Initialized: {}
-[00:32:18.026] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
-[00:32:18.030] Server  LOG     InsForge Client Initialized: {}
+[00:00:02.532] Server  LOG     ✓ Ready in 1954ms
+[00:02:09.335] Server  LOG     ○ Compiling /[[...slug]] ...
+[00:02:14.102] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:02:32.015] Server  LOG     ✓ Finished writing to filesystem cache in 14.9s
+[00:02:33.067] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[00:02:33.082] Server  LOG     InsForge Client Initialized: {}
+[00:02:33.132] Server  LOG     Login attempt for: "admin"
+[00:02:35.184] Server  LOG     Admin found: "YES"
+[00:02:35.185] Server  LOG     Comparing password with hash: "$2b$10$JRV4yoR9JEuqD.Nk2nXmyeEnmgLhqRhzUZBtiboov8TRE72nEsE0W"
+[00:02:35.278] Server  LOG     Password valid: true
+[00:03:06.172] Server  LOG     ✓ Finished writing to filesystem cache in 15.9s
+[00:25:02.469] Server  ERROR   Supplier login error: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+[00:25:42.472] Server  ERROR   Supplier login error: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+[00:26:31.014] Server  ERROR   Supplier login error: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+[00:30:10.047] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:30:29.886] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:30:51.233] Server  LOG     ✓ Finished writing to filesystem cache in 17.0s
+[00:31:26.790] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:37:24.658] Server  LOG     ✓ Compiled in 764ms
+[00:37:24.664] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:37:24.710] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:37:26.324] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:37:30.958] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:37:30.963] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:37:30.983] Server  LOG     ✓ Compiled in 115ms
+[00:37:31.947] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:37:34.265] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:41:51.909] Server  LOG     ✓ Compiled in 1534ms
+[00:41:52.701] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:41:53.673] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:41:54.581] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[00:41:54.593] Server  LOG     InsForge Client Initialized: {}
+[00:41:56.628] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[00:41:56.632] Server  LOG     InsForge Client Initialized: {}
+[00:41:58.250] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:42:00.434] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:42:00.448] Server  LOG     ✓ Compiled in 267ms
+[00:42:01.080] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:42:06.257] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:42:22.517] Server  LOG     ✓ Finished writing to filesystem cache in 14.8s
+[00:42:44.604] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:42:44.628] Server  LOG     ✓ Compiled in 18ms
+[00:42:45.427] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:43:00.977] Server  LOG     ✓ Finished writing to filesystem cache in 11.0s
+[00:43:01.248] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:44:18.241] Server  LOG     ✓ Finished writing to filesystem cache in 14.8s
+[00:44:36.216] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:44:40.333] Browser ERROR   uncaughtError: TypeError: responses?.filter is not a function
+[00:46:46.698] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:46:46.699] Server  LOG     ✓ Compiled in 1795ms
+[00:47:25.861] Server  LOG     ✓ Finished writing to filesystem cache in 36.7s
+[00:47:27.118] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:47:42.380] Server  LOG     ✓ Compiled in 528ms
+[00:47:52.399] Server  LOG     ✓ Compiled in 320ms
+[00:48:10.789] Server  LOG     ✓ Compiled in 403ms
+[00:49:28.114] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[00:49:28.129] Server  LOG     InsForge Client Initialized: {}
+[00:50:47.016] Server  LOG     [Tracking] Querying project by code: ASDASED
+[00:50:48.691] Server  LOG     Tracking 404: Project not found or inactive. Code: ASDASED
+[00:50:52.336] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[00:50:52.340] Server  LOG     InsForge Client Initialized: {}
+[00:51:06.692] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[00:51:06.695] Server  LOG     InsForge Client Initialized: {}
+[01:07:03.062] Server  LOG     ✓ Compiled in 1906ms
+[01:07:21.337] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[01:07:21.403] Server  LOG     InsForge Client Initialized: {}
+[01:07:21.841] Server  LOG     ✓ Compiled in 634ms
+[01:07:21.928] Server  LOG     ✓ Finished writing to filesystem cache in 14.4s
+[01:07:43.292] Server  LOG     ✓ Compiled in 666ms
+[01:07:44.548] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[01:07:44.562] Server  LOG     InsForge Client Initialized: {}
+[01:07:49.395] Browser ERROR   uncaughtError: TypeError: responses.filter is not a function
+[01:11:05.240] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:11:22.753] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[01:11:22.758] Server  LOG     InsForge Client Initialized: {}
+[01:12:02.474] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:12:56.567] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[01:12:56.579] Server  LOG     InsForge Client Initialized: {}
+[01:12:58.535] Browser ERROR   uncaughtError: TypeError: responses.filter is not a function
+[01:13:42.333] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:13:45.142] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[01:13:45.156] Server  LOG     InsForge Client Initialized: {}
+[01:13:47.833] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[01:13:47.852] Server  LOG     InsForge Client Initialized: {}
+[01:13:48.694] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:14:14.729] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:14:53.113] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:14:58.328] Browser ERROR   uncaughtError: TypeError: responses.filter is not a function
+[01:15:23.713] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:15:30.226] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:15:36.347] Browser ERROR   uncaughtError: TypeError: responses.filter is not a function
+[01:17:13.805] Server  LOG     ✓ Compiled in 975ms
+[01:17:13.937] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[01:17:29.307] Server  LOG     ✓ Finished writing to filesystem cache in 12.1s
+[01:17:29.529] Server  LOG     ✓ Compiled in 288ms
+[01:17:29.846] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:18:31.489] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:19:01.184] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

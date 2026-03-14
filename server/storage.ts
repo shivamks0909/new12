@@ -10,6 +10,8 @@ import {
   type SupplierAssignment, type InsertSupplierAssignment,
   type ProjectS2sConfig, type InsertProjectS2sConfig,
   type S2sLog, type InsertS2sLog,
+  type SupplierUser, type InsertSupplierUser,
+  type SupplierProjectAccess, type InsertSupplierProjectAccess,
   type DashboardStats
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -43,12 +45,13 @@ export interface IStorage {
   getSupplierByCode(code: string): Promise<Supplier | undefined>;
   createSupplier(supplier: InsertSupplier): Promise<Supplier>;
   updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined>;
+  updateSupplierPassword(id: string, hash: string): Promise<void>;
   deleteSupplier(id: string): Promise<void>;
 
   // Respondents (Tracking)
   createRespondent(respondent: InsertRespondent): Promise<Respondent>;
   getRespondentBySession(oiSession: string): Promise<Respondent | undefined>;
-  updateRespondentStatus(oiSession: string, status: string): Promise<Respondent | undefined>;
+  updateRespondentStatus(oiSession: string, status: string, redirectUrl?: string): Promise<Respondent | undefined>;
   checkDuplicateRespondent(projectCode: string, supplierCode: string, supplierRid: string): Promise<boolean>;
   getRespondents(): Promise<Respondent[]>;
   getRespondentsByProject(projectCode: string): Promise<Respondent[]>;
@@ -101,6 +104,27 @@ export interface IStorage {
   // Export methods
   getExportData(projectIds?: string[], status?: string): Promise<any[]>;
   getSupplierAssignmentsForExport(supplierId: string): Promise<any[]>;
+
+  // Supplier Portal
+  getSupplierUserByUsername(username: string): Promise<SupplierUser | undefined>;
+  getSupplierUserById(id: string): Promise<SupplierUser | undefined>;
+  getSupplierProjectAccess(userId: string): Promise<SupplierProjectAccess[]>;
+  getAssignedProjects(userId: string): Promise<Project[]>;
+  createSupplierUser(user: InsertSupplierUser): Promise<SupplierUser>;
+  updateSupplierUser(id: string, user: Partial<InsertSupplierUser>): Promise<SupplierUser | undefined>;
+  getSupplierDashboardStats(userId: string, supplierCode: string): Promise<DashboardStats>;
+  listSupplierUsers(): Promise<SupplierUser[]>;
+  listSupplierProjectAccess(): Promise<SupplierProjectAccess[]>;
+  assignProjectToSupplier(access: InsertSupplierProjectAccess): Promise<SupplierProjectAccess>;
+  removeProjectFromSupplier(id: string): Promise<void>;
+  deleteSupplierUser(id: string): Promise<void>;
+  getSupplierRespondents(supplierCode: string, projectCodes: string[]): Promise<Respondent[]>;
+  getSupplierStatsOverview(supplierCode: string): Promise<{
+    completed: number;
+    disqualified: number;
+    quotafull: number;
+    security: number;
+  }>;
 }
 
 // Mapping helpers to bridge snake_case DB columns and camelCase TS properties
@@ -136,6 +160,7 @@ const mapCountrySurvey = (data: any): CountrySurvey => ({
 
 const mapSupplier = (data: any): Supplier => ({
   ...data,
+  passwordHash: data.password_hash,
   completeUrl: data.complete_url,
   terminateUrl: data.terminate_url,
   quotafullUrl: data.quotafull_url,
@@ -159,7 +184,29 @@ const mapRespondent = (data: any): Respondent => ({
   completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
   ipAddress: data.ip_address,
   userAgent: data.user_agent,
-  surveyUrl: data.survey_url
+  surveyUrl: data.survey_url,
+  redirectUrl: data.redirect_url,
+  verifyHash: data.verify_hash
+});
+
+const mapSupplierUser = (data: any): SupplierUser => ({
+  ...data,
+  passwordHash: data.password_hash,
+  supplierId: data.supplier_id,
+  supplierCode: data.supplier_code,
+  isActive: data.is_active,
+  lastLogin: data.last_login ? new Date(data.last_login) : undefined,
+  createdAt: data.created_at ? new Date(data.created_at) : undefined,
+  createdBy: data.created_by
+});
+
+const mapSupplierProjectAccess = (data: any): SupplierProjectAccess => ({
+  ...data,
+  userId: data.user_id,
+  projectId: data.project_id,
+  projectCode: data.project_code,
+  assignedAt: data.assigned_at ? new Date(data.assigned_at) : undefined,
+  assignedBy: data.assigned_by
 });
 
 export class DatabaseStorage implements IStorage {
@@ -316,7 +363,8 @@ export class DatabaseStorage implements IStorage {
       complete_url: supplier.completeUrl,
       terminate_url: supplier.terminateUrl,
       quotafull_url: supplier.quotafullUrl,
-      security_url: supplier.securityUrl
+      security_url: supplier.securityUrl,
+      password_hash: supplier.passwordHash || null
     };
     const { data } = await insforge.database.from("suppliers").insert([dbSupplier]).select().single();
     if (!data) throw new Error("Failed to create supplier");
@@ -331,6 +379,7 @@ export class DatabaseStorage implements IStorage {
     if (supplier.terminateUrl !== undefined) dbSupplier.terminate_url = supplier.terminateUrl;
     if (supplier.quotafullUrl !== undefined) dbSupplier.quotafull_url = supplier.quotafullUrl;
     if (supplier.securityUrl !== undefined) dbSupplier.security_url = supplier.securityUrl;
+    if (supplier.passwordHash !== undefined) dbSupplier.password_hash = supplier.passwordHash;
 
     const { data } = await insforge.database.from("suppliers").update(dbSupplier).eq("id", id).select().single();
     return data ? mapSupplier(data) : undefined;
@@ -338,6 +387,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSupplier(id: string): Promise<void> {
     await insforge.database.from("suppliers").delete().eq("id", id);
+  }
+
+  async updateSupplierPassword(id: string, hash: string): Promise<void> {
+    await insforge.database.from("suppliers").update({ password_hash: hash }).eq("id", id);
   }
 
   // Respondents
@@ -355,7 +408,8 @@ export class DatabaseStorage implements IStorage {
       s2s_token: respondent.s2sToken,
       ip_address: respondent.ipAddress,
       user_agent: respondent.userAgent,
-      survey_url: (respondent as any).surveyUrl || null
+      survey_url: respondent.surveyUrl || (respondent as any).surveyUrl || null,
+      verify_hash: respondent.verifyHash || (respondent as any).verifyHash || null
     };
     const { data } = await insforge.database.from("respondents").insert([dbRespondent]).select().single();
     if (!data) throw new Error("Failed to create respondent");
@@ -367,9 +421,17 @@ export class DatabaseStorage implements IStorage {
     return data ? mapRespondent(data) : undefined;
   }
 
-  async updateRespondentStatus(oiSession: string, status: string): Promise<Respondent | undefined> {
+  async updateRespondentStatus(oiSession: string, status: string, redirectUrl?: string): Promise<Respondent | undefined> {
+    const updateData: any = { 
+      status, 
+      completed_at: status !== 'started' ? new Date() : null 
+    };
+    if (redirectUrl) {
+      updateData.redirect_url = redirectUrl;
+    }
+
     const { data } = await insforge.database.from("respondents")
-      .update({ status, completed_at: status !== 'started' ? new Date() : null })
+      .update(updateData)
       .eq("oi_session", oiSession)
       .select()
       .single();
@@ -698,6 +760,225 @@ export class DatabaseStorage implements IStorage {
         revenue: 0
       };
     });
+  }
+
+  // Supplier Portal Implementation
+  async getSupplierUserByUsername(username: string): Promise<SupplierUser | undefined> {
+    const { data } = await insforge.database.from("supplier_users").select("*").eq("username", username).maybeSingle();
+    return data ? mapSupplierUser(data) : undefined;
+  }
+
+  async getSupplierUserById(id: string): Promise<SupplierUser | undefined> {
+    const { data } = await insforge.database.from("supplier_users").select("*").eq("id", id).maybeSingle();
+    return data ? mapSupplierUser(data) : undefined;
+  }
+
+  async getSupplierProjectAccess(userId: string): Promise<SupplierProjectAccess[]> {
+    const { data } = await insforge.database.from("supplier_project_access").select("*").eq("user_id", userId);
+    return (data || []).map(mapSupplierProjectAccess);
+  }
+
+  async getAssignedProjects(userId: string): Promise<Project[]> {
+    // Join project access with projects table
+    const access = await this.getSupplierProjectAccess(userId);
+    if (access.length === 0) return [];
+    
+    const projectIds = access.map(a => a.projectId);
+    const { data } = await insforge.database.from("projects").select("*").in("id", projectIds);
+    return (data || []).map(mapProject);
+  }
+
+  async createSupplierUser(user: InsertSupplierUser): Promise<SupplierUser> {
+    const dbUser = {
+      username: user.username,
+      password_hash: user.passwordHash,
+      supplier_id: user.supplierId,
+      supplier_code: user.supplierCode,
+      is_active: user.isActive,
+      created_by: user.createdBy
+    };
+    const { data } = await insforge.database.from("supplier_users").insert([dbUser]).select().single();
+    if (!data) throw new Error("Failed to create supplier user");
+    return mapSupplierUser(data);
+  }
+
+  async updateSupplierUser(id: string, user: Partial<InsertSupplierUser>): Promise<SupplierUser | undefined> {
+    const dbUser: any = {};
+    if (user.username) dbUser.username = user.username;
+    if (user.passwordHash) dbUser.password_hash = user.passwordHash;
+    if (user.supplierId) dbUser.supplier_id = user.supplierId;
+    if (user.supplierCode) dbUser.supplier_code = user.supplierCode;
+    if (user.isActive !== undefined) dbUser.is_active = user.isActive;
+    if ((user as any).lastLogin) dbUser.last_login = (user as any).lastLogin;
+
+    const { data } = await insforge.database.from("supplier_users").update(dbUser).eq("id", id).select().single();
+    return data ? mapSupplierUser(data) : undefined;
+  }
+
+  async getSupplierDashboardStats(userId: string, supplierCode: string): Promise<DashboardStats> {
+    const access = await this.getSupplierProjectAccess(userId);
+    const projectCodes = access.map(a => a.projectCode);
+    
+    if (projectCodes.length === 0) {
+      return {
+        totalProjects: 0,
+        totalRespondents: 0,
+        completes: 0,
+        terminates: 0,
+        quotafulls: 0,
+        securityTerminates: 0,
+        activityData: [],
+      };
+    }
+
+    const { count: totalProjects } = await insforge.database.from("supplier_project_access")
+      .select("*", { count: 'exact', head: true })
+      .eq("user_id", userId);
+
+    const { count: totalRespondents } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .in("project_code", projectCodes);
+
+    const { count: completes } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .in("project_code", projectCodes)
+      .eq("status", "complete");
+
+    const { count: terminates } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .in("project_code", projectCodes)
+      .eq("status", "terminate");
+
+    const { count: quotafulls } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .in("project_code", projectCodes)
+      .eq("status", "quotafull");
+
+    const { count: securityTerminates } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .in("project_code", projectCodes)
+      .eq("status", "security-terminate");
+
+    return {
+      totalProjects: totalProjects || 0,
+      totalRespondents: totalRespondents || 0,
+      completes: completes || 0,
+      terminates: terminates || 0,
+      quotafulls: quotafulls || 0,
+      securityTerminates: securityTerminates || 0,
+      activityData: [],
+    };
+  }
+
+  async getSupplierRespondents(supplierCode: string, projectCodes: string[]): Promise<Respondent[]> {
+    if (projectCodes.length === 0) return [];
+    
+    const { data } = await insforge.database.from("respondents")
+      .select("*")
+      .eq("supplier_code", supplierCode)
+      .in("project_code", projectCodes)
+      .order("started_at", { ascending: false });
+      
+    return (data || []).map(mapRespondent);
+  }
+
+  async listSupplierUsers(): Promise<SupplierUser[]> {
+    const { data } = await insforge.database.from("supplier_users").select("*").order("created_at", { ascending: false });
+    return (data || []).map(mapSupplierUser);
+  }
+
+  async listSupplierProjectAccess(): Promise<SupplierProjectAccess[]> {
+    const { data, error } = await insforge.database
+      .from("supplier_project_access")
+      .select(`
+        *,
+        supplier_users (username),
+        projects (project_name)
+      `)
+      .order("assigned_at", { ascending: false });
+    
+    if (error) {
+      console.error("Error listing supplier project access:", error);
+      return [];
+    }
+    
+    return (data || []).map(a => ({
+      ...mapSupplierProjectAccess(a),
+      username: a.supplier_users?.username,
+      projectName: a.projects?.project_name
+    }));
+  }
+
+  async assignProjectToSupplier(access: InsertSupplierProjectAccess): Promise<SupplierProjectAccess> {
+    const dbAccess = {
+      user_id: access.userId,
+      project_id: access.projectId,
+      project_code: access.projectCode,
+      assigned_by: access.assignedBy
+    };
+    
+    const { data, error } = await insforge.database.from("supplier_project_access").insert([dbAccess]).select().single();
+    if (error) {
+      console.error("DB insert error for supplier_project_access:", error);
+      throw error;
+    }
+    if (!data) throw new Error("Failed to assign project to supplier");
+    return mapSupplierProjectAccess(data);
+  }
+
+  async removeProjectFromSupplier(id: string): Promise<void> {
+    await insforge.database.from("supplier_project_access").delete().eq("id", id);
+  }
+
+  async deleteSupplierUser(id: string): Promise<void> {
+    await insforge.database.from("supplier_users").delete().eq("id", id);
+  }
+
+  async getSupplierStatsOverview(supplierCode: string): Promise<{
+    completed: number;
+    disqualified: number;
+    quotafull: number;
+    security: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString();
+
+    const { count: completed } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .eq("status", "complete")
+      .gte("started_at", todayStr);
+
+    const { count: disqualified } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .eq("status", "terminate")
+      .gte("started_at", todayStr);
+
+    const { count: quotafull } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .eq("status", "quotafull")
+      .gte("started_at", todayStr);
+
+    const { count: security } = await insforge.database.from("respondents")
+      .select("*", { count: 'exact', head: true })
+      .eq("supplier_code", supplierCode)
+      .eq("status", "security-terminate")
+      .gte("started_at", todayStr);
+
+    return {
+      completed: completed || 0,
+      disqualified: disqualified || 0,
+      quotafull: quotafull || 0,
+      security: security || 0
+    };
   }
 }
 

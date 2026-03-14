@@ -28,6 +28,10 @@ import SettingsPage from "@/pages/admin/settings";
 import LinkGeneratorPage from "@/pages/admin/link-generator";
 import S2SConfigPage from "@/pages/admin/projects/s2s";
 import PausedPage from "@/pages/paused";
+import { SupplierProtectedRoute } from "@/components/supplier-protected-route";
+import SupplierLoginPage from "@/pages/supplier/login";
+import SupplierDashboardPage from "@/pages/supplier/dashboard";
+import SupplierResponsesPage from "@/pages/supplier/responses";
 import { Loader2 } from "lucide-react";
 
 // New Public Landing Pages
@@ -134,6 +138,19 @@ function Router() {
       <Route path="/prescreener/:session" component={PrescreenerPage} />
       <Route path="/survey" component={MockSurvey} />
       <Route path="/debug/redirect-chain" component={RedirectDebugger} />
+      
+      {/* Supplier Portal Routes */}
+      <Route path="/supplier/login" component={SupplierLoginPage} />
+      <Route path="/supplier/dashboard">
+        <SupplierProtectedRoute>
+          <SupplierDashboardPage />
+        </SupplierProtectedRoute>
+      </Route>
+      <Route path="/supplier/responses">
+        <SupplierProtectedRoute>
+          <SupplierResponsesPage />
+        </SupplierProtectedRoute>
+      </Route>
 
       <Route component={NotFound} />
     </Switch>

@@ -7,6 +7,7 @@ const PgSession = connectPgSimple(session);
 declare module "express-session" {
   interface SessionData {
     adminId?: string;
+    supplierUserId?: string;
   }
 }
 import { pool } from "./db";
@@ -54,7 +55,14 @@ export function setupAuth(app: Express) {
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session.adminId) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return res.status(401).json({ message: "Unauthorized as Admin" });
+  }
+  next();
+}
+
+export function requireSupplier(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.supplierUserId) {
+    return res.status(401).json({ message: "Unauthorized as Supplier" });
   }
   next();
 }
