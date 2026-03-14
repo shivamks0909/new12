@@ -493,9 +493,10 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
       }
+      const admin = req.session.adminId ? await storage.getAdminById(req.session.adminId) : null;
       const access = await storage.assignProjectToSupplier({
         ...parsed.data,
-        assignedBy: (req.user as any)?.username || "admin"
+        assignedBy: admin?.username || "admin"
       });
       return res.status(201).json(access);
     } catch (error: any) {
