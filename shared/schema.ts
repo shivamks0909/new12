@@ -190,6 +190,7 @@ export const projectSchema = z.object({
   terminateUrl: z.string().nullable().optional(),
   quotafullUrl: z.string().nullable().optional(),
   securityUrl: z.string().nullable().optional(),
+  customDomain: z.string().nullable().optional(),
 });
 
 export const insertProjectSchema = projectSchema.omit({
