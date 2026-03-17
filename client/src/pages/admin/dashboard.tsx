@@ -118,13 +118,7 @@ export default function DashboardPage() {
           description="Completes / Starts"
           className="shadow-sm border-slate-200/60 bg-white/60"
         />
-        <StatCard
-          title="Revenue"
-          value="$0.00"
-          icon={Activity}
-          description="Estimated (Optional)"
-          className="shadow-sm border-slate-200/60 bg-white/60"
-        />
+
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
