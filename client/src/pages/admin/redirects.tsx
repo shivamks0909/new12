@@ -34,7 +34,7 @@ export default function ToolLinksPage() {
     {
       title: "Complete Redirect",
       description: "Redirect for successful survey completions",
-      url: `${baseUrl}/pages/complete?pid=${projectCode}&uid=[UID]`,
+      url: `${baseUrl}/status?code=${projectCode}&uid=[UID]&type=complete`,
       icon: CheckCircle2,
       color: "text-emerald-500",
       bgColor: "bg-emerald-50"
@@ -42,7 +42,7 @@ export default function ToolLinksPage() {
     {
       title: "Terminate Redirect",
       description: "Redirect for disqualified respondents",
-      url: `${baseUrl}/pages/terminate?pid=${projectCode}&uid=[UID]`,
+      url: `${baseUrl}/status?code=${projectCode}&uid=[UID]&type=terminate`,
       icon: XCircle,
       color: "text-rose-500",
       bgColor: "bg-rose-50"
@@ -50,7 +50,7 @@ export default function ToolLinksPage() {
     {
       title: "Quotafull Redirect",
       description: "Redirect when project quotas are full",
-      url: `${baseUrl}/pages/quotafull?pid=${projectCode}&uid=[UID]`,
+      url: `${baseUrl}/status?code=${projectCode}&uid=[UID]&type=quota`,
       icon: Globe,
       color: "text-orange-500",
       bgColor: "bg-orange-50"
@@ -58,7 +58,7 @@ export default function ToolLinksPage() {
     {
       title: "Security Terminate",
       description: "Redirect for fraud or security violations",
-      url: `${baseUrl}/pages/security?pid=${projectCode}&uid=[UID]`,
+      url: `${baseUrl}/status?code=${projectCode}&uid=[UID]&type=security_terminate`,
       icon: ShieldAlert,
       color: "text-red-700",
       bgColor: "bg-red-50"
@@ -66,7 +66,7 @@ export default function ToolLinksPage() {
     {
       title: "Duplicate IP",
       description: "Redirect for repeated IP address attempts",
-      url: `${baseUrl}/pages/duplicate?pid=${projectCode}&uid=[UID]`,
+      url: `${baseUrl}/status?code=${projectCode}&uid=[UID]&type=duplicate_ip`,
       icon: ShieldAlert,
       color: "text-amber-600",
       bgColor: "bg-amber-50"
@@ -74,7 +74,7 @@ export default function ToolLinksPage() {
     {
       title: "Duplicate String",
       description: "Redirect for repeated browser signatures",
-      url: `${baseUrl}/pages/duplicate?pid=${projectCode}&uid=[UID]`,
+      url: `${baseUrl}/status?code=${projectCode}&uid=[UID]&type=duplicate_string`,
       icon: Lock,
       color: "text-slate-600",
       bgColor: "bg-slate-50"

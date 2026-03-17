@@ -50,3 +50,4 @@
 [02:35:25.486] Server  LOG     ✓ Finished writing to filesystem cache in 13.8s
 [02:35:27.309] Server  LOG     [dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
 [02:35:27.322] Server  LOG     InsForge Client Initialized: {}
+[02:43:45.501] Server  LOG     ✓ Compiled in 2.1s
